@@ -255,6 +255,25 @@ Example:
     { name: 'June',  idx: 5 },
   ];
 
+  // ── Persistence ─────────────────────────────────────────────
+  const STORAGE_DATES = 'divecal_off_dates';
+  const STORAGE_GROUP = 'divecal_group';
+
+  function saveOffDates() {
+    localStorage.setItem(STORAGE_DATES, [...offDates].sort().join(','));
+  }
+  function loadOffDates() {
+    const raw = localStorage.getItem(STORAGE_DATES);
+    if (raw) raw.split(',').forEach(d => { if (d) offDates.add(d); });
+  }
+  function saveGroup() {
+    localStorage.setItem(STORAGE_GROUP, document.getElementById('group-in').value);
+  }
+  function loadGroup() {
+    const raw = localStorage.getItem(STORAGE_GROUP);
+    if (raw) document.getElementById('group-in').value = raw;
+  }
+
   const offDates = new Set();   // ISO strings of unavailable dates
 
   // ── Helpers ────────────────────────────────────────────────
@@ -330,6 +349,7 @@ Example:
       cell.classList.add('unavail');
     }
     refreshRaw();
+    saveOffDates();
   }
 
   function refreshRaw() {
@@ -379,6 +399,7 @@ Example:
     offDates.clear();
     document.querySelectorAll('.day.unavail').forEach(c => c.classList.remove('unavail'));
     refreshRaw();
+    saveOffDates();
   });
 
   // ── Group availability ──────────────────────────────────────
@@ -476,7 +497,11 @@ Example:
   });
 
   // ── Init ────────────────────────────────────────────────────
+  loadOffDates();
   buildCalendars();
+  refreshRaw();
+  loadGroup();
+  document.getElementById('group-in').addEventListener('input', saveGroup);
 </script>
 
 </body>
