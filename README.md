@@ -1,1 +1,3 @@
 # AvailabilityCalendar
+
+Powered by Claude
