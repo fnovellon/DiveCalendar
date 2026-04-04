@@ -210,6 +210,59 @@
 
     .syncing { font-size: 0.82rem; color: #a0aec0; }
 
+    /* Room bar */
+    .room-bar {
+      background: #1e4080;
+      padding: 0.55rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .room-bar .room-label { color: rgba(255,255,255,0.55); font-size: 0.82rem; }
+    .room-bar strong { color: white; font-size: 0.88rem; }
+    .room-bar input {
+      padding: 0.28rem 0.6rem;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 0.82rem;
+      width: 130px;
+      outline: none;
+    }
+    .room-bar input::placeholder { color: rgba(255,255,255,0.35); }
+    .room-bar input:focus { border-color: rgba(255,255,255,0.5); }
+    .room-bar button {
+      padding: 0.28rem 0.75rem;
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.15);
+    }
+    .room-bar button:hover { background: rgba(255,255,255,0.28); }
+    .room-bar .room-fb { color: rgba(255,255,255,0.8); font-size: 0.82rem; }
+
+    /* Weekend column headers */
+    .day-hdr.we { color: #718096; background: #f0f4f8; border-radius: 4px; }
+
+    /* Weekend days in group calendar */
+    .day.grp-avail.weekend   { background: #9ae6b4; border-color: #48bb78; color: #22543d; }
+    .day.grp-unavail.weekend { background: #fffaf0; color: #c0b090; }
+
+    /* Tooltip */
+    #tooltip {
+      position: fixed;
+      display: none;
+      background: #1a365d;
+      color: white;
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      max-width: 220px;
+    }
+
     @media (max-width: 680px) {
       #calendars, #group-calendars { flex-direction: column; }
       .month { min-width: unset; }
@@ -222,6 +275,15 @@
   <h1>Dive Calendar <span id="app-version" style="font-size:0.9rem;font-weight:400;opacity:0.6;vertical-align:middle;"></span></h1>
   <p>Powered by Claude</p>
 </header>
+
+<div class="room-bar">
+  <span class="room-label">Room:</span>
+  <strong id="room-display"></strong>
+  <input id="room-input" type="text" placeholder="enter room name" maxlength="40">
+  <button id="btn-join-room">Join Room</button>
+  <button id="btn-copy-link">Copy Link</button>
+  <span class="room-fb" id="room-fb"></span>
+</div>
 
 <div id="setup-banner" class="setup-banner" style="display:none">
   <strong>Setup required:</strong> Open <code>index.html</code> and replace the <code>FIREBASE_CONFIG</code> placeholder with your own Firebase project credentials to enable real-time sharing between users.
@@ -265,10 +327,36 @@
 
 </div>
 
+<div id="tooltip"></div>
+
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '0.0.3';
+  const VERSION = '0.3.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
+
+  // ── Room ─────────────────────────────────────────────────────
+  const ROOM_ID = (new URLSearchParams(window.location.search).get('room') || 'default')
+    .replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'default';
+
+  document.getElementById('room-display').textContent = ROOM_ID;
+
+  document.getElementById('btn-join-room').addEventListener('click', () => {
+    const room = document.getElementById('room-input').value.trim()
+      .replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'default';
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', room);
+    window.location.href = url.toString();
+  });
+
+  document.getElementById('btn-copy-link').addEventListener('click', () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', ROOM_ID);
+    const fb = document.getElementById('room-fb');
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      fb.textContent = 'Link copied!';
+      setTimeout(() => fb.textContent = '', 3000);
+    });
+  });
 
   // ── Firebase config ──────────────────────────────────────────
   // To enable real-time sync:
@@ -366,9 +454,9 @@
       monthEl.appendChild(h3);
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
-      ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(label => {
+      ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach((label, i) => {
         const hdr = document.createElement('div');
-        hdr.className = 'day-hdr';
+        hdr.className = 'day-hdr' + (i === 0 || i === 6 ? ' we' : '');
         hdr.textContent = label;
         grid.appendChild(hdr);
       });
@@ -407,7 +495,7 @@
     if (!name) { feedback('Please enter your name first.', '#c53030'); return; }
     saveLocal();
     const dates = [...offDates].sort().join(',');
-    db.ref('divecalendar/users/' + MY_ID).set({ name, dates, updatedAt: Date.now() })
+    db.ref('divecalendar/rooms/' + ROOM_ID + '/users/' + MY_ID).set({ name, dates, updatedAt: Date.now() })
       .then(() => feedback('Submitted!'))
       .catch(() => feedback('Error saving — check Firebase config.', '#c53030'));
   });
@@ -425,7 +513,7 @@
     refreshRaw();
     saveLocal();
     if (db) {
-      db.ref('divecalendar/users/' + MY_ID).remove()
+      db.ref('divecalendar/rooms/' + ROOM_ID + '/users/' + MY_ID).remove()
         .then(() => feedback('Cleared and removed from group.', '#718096'))
         .catch(() => feedback('Cleared locally, but DB remove failed.', '#c53030'));
     }
@@ -443,11 +531,16 @@
       return;
     }
 
-    // Aggregate unavailable dates
+    // Aggregate unavailable dates + build date→names map for tooltips
     const anyUnavail = new Set();
-    entries.forEach(([, { dates }]) => {
+    const dateToNames = {};
+    entries.forEach(([, { name, dates }]) => {
       (dates || '').split(',').forEach(d => {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(d.trim())) anyUnavail.add(d.trim());
+        const date = d.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          anyUnavail.add(date);
+          (dateToNames[date] = dateToNames[date] || []).push(name);
+        }
       });
     });
 
@@ -488,9 +581,9 @@
       monthEl.appendChild(h3);
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
-      ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(label => {
+      ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach((label, i) => {
         const hdr = document.createElement('div');
-        hdr.className = 'day-hdr';
+        hdr.className = 'day-hdr' + (i === 0 || i === 6 ? ' we' : '');
         hdr.textContent = label;
         grid.appendChild(hdr);
       });
@@ -502,7 +595,15 @@
         const cell = document.createElement('div');
         cell.className = 'day';
         if (new Date(YEAR, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
-        cell.classList.add(anyUnavail.has(dateStr) ? 'grp-unavail' : 'grp-avail');
+        if (anyUnavail.has(dateStr)) {
+          cell.classList.add('grp-unavail');
+          const names = dateToNames[dateStr] || [];
+          cell.addEventListener('mouseenter', e => showTooltip(names, e));
+          cell.addEventListener('mousemove',  moveTooltip);
+          cell.addEventListener('mouseleave', hideTooltip);
+        } else {
+          cell.classList.add('grp-avail');
+        }
         cell.textContent = d;
         grid.appendChild(cell);
       }
@@ -515,7 +616,7 @@
   if (db) {
     document.getElementById('participants-info').innerHTML =
       '<p class="no-dates">Connecting to database…</p>';
-    db.ref('divecalendar/users').on(
+    db.ref('divecalendar/rooms/' + ROOM_ID + '/users').on(
       'value',
       snapshot => { renderGroupCalendar(snapshot.val() || {}); },
       error  => {
@@ -531,6 +632,19 @@
     document.getElementById('participants-info').innerHTML =
       '<p class="no-dates">Firebase not configured — submissions will not sync.</p>';
   }
+
+  // ── Tooltip ──────────────────────────────────────────────────
+  const tooltipEl = document.getElementById('tooltip');
+  function showTooltip(names, e) {
+    tooltipEl.textContent = names.join(', ') + ' unavailable';
+    tooltipEl.style.display = 'block';
+    moveTooltip(e);
+  }
+  function moveTooltip(e) {
+    tooltipEl.style.left = (e.clientX + 14) + 'px';
+    tooltipEl.style.top  = (e.clientY - 38) + 'px';
+  }
+  function hideTooltip() { tooltipEl.style.display = 'none'; }
 
   // ── Init ─────────────────────────────────────────────────────
   loadLocal();
