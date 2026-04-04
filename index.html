@@ -528,9 +528,23 @@
 
   // Subscribe to real-time updates
   if (db) {
-    db.ref('divecalendar/users').on('value', snapshot => {
-      renderGroupCalendar(snapshot.val() || {});
-    });
+    document.getElementById('participants-info').innerHTML =
+      '<p class="no-dates">Connecting to database…</p>';
+    db.ref('divecalendar/users').on(
+      'value',
+      snapshot => { renderGroupCalendar(snapshot.val() || {}); },
+      error  => {
+        document.getElementById('participants-info').innerHTML =
+          `<p class="no-dates" style="color:#c53030">
+            Firebase error: ${escapeHtml(error.message)}<br>
+            If you set custom security rules, make sure <code>.read: true</code>
+            is on the <code>users</code> node, not the <code>$userId</code> node.
+           </p>`;
+      }
+    );
+  } else {
+    document.getElementById('participants-info').innerHTML =
+      '<p class="no-dates">Firebase not configured — submissions will not sync.</p>';
   }
 
   // ── Init ─────────────────────────────────────────────────────
