@@ -220,7 +220,7 @@
 
 <header>
   <h1>Dive Calendar</h1>
-  <p>Powered by Claude</p>
+  <p>Powered by Claude &nbsp;·&nbsp; <span id="app-version"></span></p>
 </header>
 
 <div id="setup-banner" class="setup-banner" style="display:none">
@@ -267,6 +267,10 @@
 </div>
 
 <script>
+  // ── Version ──────────────────────────────────────────────────
+  const VERSION = '0.0.1';
+  document.getElementById('app-version').textContent = 'v' + VERSION;
+
   // ── Firebase config ──────────────────────────────────────────
   // To enable real-time sync:
   // 1. Go to https://console.firebase.google.com/ and create a project
