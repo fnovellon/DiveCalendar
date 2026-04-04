@@ -523,11 +523,35 @@
 
     /* ── Responsive ───────────────────────────────────────────── */
     @media (max-width: 680px) {
-      header h1 { font-size: 1.6rem; }
-      .card { padding: 1.25rem; }
-      #calendars, #group-calendars { flex-direction: column; }
-      .month { min-width: unset; }
+      header { padding: 2rem 1rem 2.75rem; }
+      header h1 { font-size: 1.5rem; }
+
+      .container { padding: 1rem 0.75rem; }
+
+      .card { padding: 1.25rem 1rem; }
       .card-subtitle { display: none; }
+
+      /* Calendars stack, cells fill the width */
+      #calendars, #group-calendars { flex-direction: column; gap: 0.75rem; }
+      .month { min-width: unset; padding: 0.85rem 0.5rem; }
+      .cal-grid { gap: 1px; }
+      .day { font-size: 0.85rem; }
+
+      /* Name row stacks */
+      .name-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+      .name-row input { width: 100%; }
+
+      /* Buttons full-width and easy to tap */
+      .actions { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+      .btn-primary, .btn-ghost {
+        text-align: center;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+      }
+      .feedback { text-align: center; }
+
+      /* Legend tighter */
+      .legend { gap: 0.75rem; }
     }
   </style>
 </head>
@@ -619,7 +643,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
