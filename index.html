@@ -275,23 +275,33 @@
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyD6OY-jmRqTqb4bpoC4bQ6R34DKFgY1Xhg",
     authDomain: "divecalendar.firebaseapp.com",
+    databaseURL: "https://divecalendar-default-rtdb.firebaseio.com",
     projectId: "divecalendar",
     storageBucket: "divecalendar.firebasestorage.app",
     messagingSenderId: "837481530568",
     appId: "1:837481530568:web:005be22ecee8cea57051fd"
   };
 
-  const DB_READY = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE');
+  const DB_READY = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE') && !!FIREBASE_CONFIG.databaseURL;
   let db = null;
 
-  if (DB_READY) {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.database();
-  } else {
+  function showBanner(msg) {
     document.getElementById('setup-banner').style.display = 'flex';
+    document.getElementById('setup-banner').querySelector('strong').textContent = msg;
     document.getElementById('group-subtitle').textContent =
-      'Firebase not configured — set up Firebase to sync availability across users in real time.';
+      'Firebase not available — check the banner above.';
     document.getElementById('btn-submit').disabled = true;
+  }
+
+  if (DB_READY) {
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.database();
+    } catch (e) {
+      showBanner('Firebase init failed: ' + e.message);
+    }
+  } else {
+    showBanner('Setup required: fill in FIREBASE_CONFIG in index.html');
   }
 
   // ── Constants ────────────────────────────────────────────────
