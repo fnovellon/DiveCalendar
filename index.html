@@ -221,18 +221,6 @@
     }
     .room-bar .room-label { color: rgba(255,255,255,0.55); font-size: 0.82rem; }
     .room-bar strong { color: white; font-size: 0.88rem; }
-    .room-bar input {
-      padding: 0.28rem 0.6rem;
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 6px;
-      background: rgba(255,255,255,0.1);
-      color: white;
-      font-size: 0.82rem;
-      width: 130px;
-      outline: none;
-    }
-    .room-bar input::placeholder { color: rgba(255,255,255,0.35); }
-    .room-bar input:focus { border-color: rgba(255,255,255,0.5); }
     .room-bar button {
       padding: 0.28rem 0.75rem;
       font-size: 0.8rem;
@@ -306,10 +294,7 @@
 <div class="room-bar">
   <span class="room-label">Room:</span>
   <strong id="room-display"></strong>
-  <input id="room-input" type="text" placeholder="enter room name" maxlength="40">
-  <button id="btn-join-room">Join Room</button>
-  <button id="btn-copy-link">Copy Link</button>
-  <span class="room-fb" id="room-fb"></span>
+  <button id="btn-exit-room" style="background:rgba(255,255,255,0.15);margin-left:auto;">Exit Room</button>
 </div>
 
 <div id="setup-banner" class="setup-banner" style="display:none">
@@ -367,7 +352,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '0.3.3';
+  const VERSION = '0.3.4';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -394,18 +379,10 @@
 
   document.getElementById('room-display').textContent = ROOM_ID || '—';
 
-  document.getElementById('btn-join-room').addEventListener('click', () => {
-    joinRoom(document.getElementById('room-input').value.trim());
-  });
-
-  document.getElementById('btn-copy-link').addEventListener('click', () => {
+  document.getElementById('btn-exit-room').addEventListener('click', () => {
     const url = new URL(window.location.href);
-    url.searchParams.set('room', ROOM_ID);
-    const fb = document.getElementById('room-fb');
-    navigator.clipboard.writeText(url.toString()).then(() => {
-      fb.textContent = 'Link copied!';
-      setTimeout(() => fb.textContent = '', 3000);
-    });
+    url.searchParams.delete('room');
+    window.location.href = url.toString();
   });
 
   // ── Firebase config ──────────────────────────────────────────
