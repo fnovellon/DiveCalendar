@@ -249,7 +249,6 @@
 
     <div class="actions">
       <button id="btn-submit">Submit to Group</button>
-      <button id="btn-copy" style="background:#4a5568;">Copy as Text</button>
       <button id="btn-clear" style="background:#718096;">Clear</button>
       <span class="feedback" id="action-fb"></span>
     </div>
@@ -268,7 +267,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '0.0.2';
+  const VERSION = '0.0.3';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Firebase config ──────────────────────────────────────────
@@ -413,29 +412,6 @@
       .catch(() => feedback('Error saving — check Firebase config.', '#c53030'));
   });
 
-  // ── Copy as text ─────────────────────────────────────────────
-  document.getElementById('btn-copy').addEventListener('click', () => {
-    const text = [...offDates].sort().join(',');
-    if (!text) { feedback('No dates selected.', '#718096'); return; }
-    const copy = () => feedback('Copied to clipboard!');
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(copy).catch(() => fallbackCopy(text, copy));
-    } else {
-      fallbackCopy(text, copy);
-    }
-  });
-
-  function fallbackCopy(text, cb) {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    cb();
-  }
 
   function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
