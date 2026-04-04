@@ -56,10 +56,52 @@
 
     /* ── Header ───────────────────────────────────────────────── */
     header {
-      background: linear-gradient(140deg, var(--navy-dark) 0%, var(--navy) 45%, var(--sky) 100%);
+      background: linear-gradient(160deg, #071e38 0%, var(--navy) 40%, #0e6d8e 75%, #0891b2 100%);
       color: white;
-      padding: 2.75rem 1.5rem 2.25rem;
+      padding: 2.75rem 1.5rem 3.25rem;
       text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Underwater light rays */
+    header::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      left: 20%;
+      width: 65%;
+      height: 180%;
+      background: radial-gradient(ellipse at 50% 30%, rgba(8,145,178,0.22) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    /* Wave transition into room bar */
+    .header-wave {
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 40px;
+      pointer-events: none;
+    }
+
+    /* Bubbles */
+    .bubbles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .bbl {
+      position: absolute;
+      bottom: 10px;
+      left: var(--x);
+      width: var(--s);
+      height: var(--s);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.25);
+      animation: bbl-rise var(--d) ease-in infinite var(--delay);
+    }
+    @keyframes bbl-rise {
+      0%   { transform: translateY(0) scale(1); opacity: 0; }
+      12%  { opacity: 0.75; }
+      88%  { opacity: 0.25; }
+      100% { transform: translateY(-200px) scale(1.15); opacity: 0; }
     }
     header h1 {
       font-size: 2.25rem;
@@ -160,17 +202,7 @@
       border-bottom: 1px solid var(--neutral-200);
     }
     .card-step {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--sky);
-      background: var(--sky-light);
-      padding: 0.2rem 0.6rem;
-      border-radius: 99px;
-    }
-    .card-title {
-      font-size: 1.15rem;
+      font-size: 1rem;
       font-weight: 700;
       color: var(--navy);
     }
@@ -502,8 +534,23 @@
 <body>
 
 <header>
-  <h1>Dive Calendar <span id="app-version"></span></h1>
+  <div class="bubbles" aria-hidden="true">
+    <span class="bbl" style="--x:4%;  --s:6px; --d:3.5s; --delay:0s"></span>
+    <span class="bbl" style="--x:11%; --s:10px;--d:5s;   --delay:0.8s"></span>
+    <span class="bbl" style="--x:20%; --s:7px; --d:4.2s; --delay:2s"></span>
+    <span class="bbl" style="--x:32%; --s:13px;--d:6s;   --delay:0.3s"></span>
+    <span class="bbl" style="--x:46%; --s:5px; --d:3.8s; --delay:1.6s"></span>
+    <span class="bbl" style="--x:57%; --s:8px; --d:4.8s; --delay:0.5s"></span>
+    <span class="bbl" style="--x:68%; --s:11px;--d:5.5s; --delay:2.3s"></span>
+    <span class="bbl" style="--x:78%; --s:6px; --d:4s;   --delay:1s"></span>
+    <span class="bbl" style="--x:88%; --s:9px; --d:3.8s; --delay:0.2s"></span>
+    <span class="bbl" style="--x:95%; --s:7px; --d:5.2s; --delay:1.8s"></span>
+  </div>
+  <h1>🤿 Dive Calendar <span id="app-version"></span></h1>
   <p>Powered by Claude</p>
+  <svg class="header-wave" viewBox="0 0 1440 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0,20 C180,40 360,0 540,20 C720,40 900,0 1080,20 C1260,40 1390,8 1440,20 L1440,40 L0,40 Z" fill="#082d47"/>
+  </svg>
 </header>
 
 <div class="room-bar">
@@ -522,8 +569,7 @@
   <!-- ── Section 1 ── -->
   <div class="card">
     <div class="card-header">
-      <span class="card-step">Step 1</span>
-      <span class="card-title">My Availability</span>
+      <span class="card-step">🤿 My availability</span>
       <span class="card-subtitle">Click days you are <strong>not</strong> available</span>
     </div>
 
@@ -550,8 +596,7 @@
   <!-- ── Section 2 ── -->
   <div class="card">
     <div class="card-header">
-      <span class="card-step">Step 2</span>
-      <span class="card-title">Group Availability</span>
+      <span class="card-step">🌊 Group availability</span>
       <span class="card-subtitle" id="group-subtitle">Updates in real-time</span>
     </div>
     <div id="participants-info"></div>
@@ -574,7 +619,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.0.1';
+  const VERSION = '1.1.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
