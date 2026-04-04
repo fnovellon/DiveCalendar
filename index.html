@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dive Calendar - Availability</title>
+
+  <!-- Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -23,6 +28,26 @@
     header h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.3rem; }
     header p { opacity: 0.75; font-size: 0.85rem; }
 
+    /* Setup banner */
+    .setup-banner {
+      background: #fffbeb;
+      border-bottom: 2px solid #f6ad55;
+      padding: 0.85rem 1.5rem;
+      font-size: 0.88rem;
+      color: #744210;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .setup-banner a { color: #2b6cb0; font-weight: 600; }
+    .setup-banner code {
+      background: #fef3c7;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+    }
+
     .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
 
     section {
@@ -32,25 +57,45 @@
       margin-bottom: 2rem;
       box-shadow: 0 2px 10px rgba(0,0,0,0.07);
     }
-
     section h2 { font-size: 1.3rem; color: #1a365d; margin-bottom: 0.4rem; }
-
     .subtitle { color: #718096; font-size: 0.88rem; margin-bottom: 1.25rem; }
 
+    /* Name row */
+    .name-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+    .name-row label { font-size: 0.9rem; font-weight: 600; color: #2d3748; white-space: nowrap; }
+    .name-row input {
+      padding: 0.45rem 0.75rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      width: 180px;
+      transition: border-color 0.15s;
+    }
+    .name-row input:focus { border-color: #90cdf4; }
+
+    /* Legend */
     .legend {
       display: flex;
       gap: 1.5rem;
       margin-bottom: 1.25rem;
       font-size: 0.82rem;
       color: #718096;
+      flex-wrap: wrap;
     }
     .legend-item { display: flex; align-items: center; gap: 0.4rem; }
-    .legend-dot {
-      width: 16px; height: 16px; border-radius: 4px;
-      border: 2px solid #e2e8f0;
-    }
-    .legend-dot.unavail { background: #fed7d7; border-color: #fc8181; }
+    .legend-dot { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #e2e8f0; }
+    .legend-dot.unavail  { background: #fed7d7; border-color: #fc8181; }
+    .legend-dot.grp-avail   { background: #c6f6d5; border-color: #68d391; }
+    .legend-dot.grp-unavail { background: #fff5f5; border-color: #e2e8f0; }
 
+    /* Calendars */
     #calendars { display: flex; gap: 1.5rem; flex-wrap: wrap; }
 
     .month { flex: 1; min-width: 260px; }
@@ -89,20 +134,21 @@
     }
     .day:hover { background: #ebf8ff; border-color: #90cdf4; }
     .day.weekend { color: #a0aec0; }
-    .day.unavail {
-      background: #fed7d7;
-      color: #c53030;
-      border-color: #fc8181;
-      font-weight: 600;
-    }
+    .day.unavail { background: #fed7d7; color: #c53030; border-color: #fc8181; font-weight: 600; }
     .day.unavail:hover { background: #feb2b2; }
-    .day-empty { /* spacer */ }
+    .day-empty { }
 
+    /* Group calendar day states */
+    .day.grp-avail   { background: #c6f6d5; color: #276749; border-color: #68d391; font-weight: 600; }
+    .day.grp-unavail { background: #fff5f5; color: #cbd5e0; border-color: transparent; cursor: default; }
+    .day.grp-unavail:hover { background: #fff5f5; border-color: transparent; }
+
+    /* Actions */
     .actions {
       margin-top: 1.5rem;
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
       flex-wrap: wrap;
     }
 
@@ -118,8 +164,9 @@
       transition: background 0.15s;
     }
     button:hover { background: #2c5282; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .feedback { font-size: 0.85rem; color: #38a169; font-weight: 500; }
+    .feedback { font-size: 0.85rem; font-weight: 500; }
 
     .raw-box {
       margin-top: 1rem;
@@ -134,65 +181,37 @@
       min-height: 2.5rem;
     }
 
-    textarea {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 0.83rem;
-      resize: vertical;
-      min-height: 130px;
-      color: #4a5568;
-      outline: none;
-      transition: border-color 0.15s;
+    /* Participants list */
+    .participants-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
     }
-    textarea:focus { border-color: #90cdf4; box-shadow: 0 0 0 3px rgba(144,205,244,0.3); }
-
-    #available-out { margin-top: 1.5rem; }
-
-    .avail-month {
-      margin-bottom: 0.6rem;
-      padding: 0.7rem 1rem;
-      background: #f0fff4;
-      border: 1px solid #9ae6b4;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      line-height: 1.6;
+    .participant-pill {
+      background: #ebf8ff;
+      color: #2b6cb0;
+      border: 1px solid #90cdf4;
+      border-radius: 99px;
+      padding: 0.2rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
     }
-    .avail-month strong { color: #276749; }
-
-    .result-info { font-size: 0.83rem; color: #718096; margin-bottom: 0.75rem; }
-    .no-dates { color: #c53030; font-style: italic; font-size: 0.88rem; }
-
-    /* Group calendar */
-    #group-calendars { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
-    .day.grp-avail {
+    .participant-pill.is-me {
       background: #c6f6d5;
       color: #276749;
       border-color: #68d391;
-      font-weight: 600;
     }
-    .day.grp-unavail {
-      background: #fff5f5;
-      color: #cbd5e0;
-      border-color: transparent;
-      cursor: default;
-    }
-    .day.grp-unavail:hover { background: #fff5f5; border-color: transparent; }
 
-    .group-legend {
-      display: flex;
-      gap: 1.5rem;
-      margin-bottom: 1.25rem;
-      font-size: 0.82rem;
-      color: #718096;
-    }
-    .legend-dot.grp-avail { background: #c6f6d5; border-color: #68d391; }
-    .legend-dot.grp-unavail { background: #fff5f5; border-color: #e2e8f0; color: #cbd5e0; }
+    #group-calendars { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
+
+    .result-info { font-size: 0.83rem; color: #718096; margin-bottom: 0.75rem; }
+    .no-dates { color: #718096; font-style: italic; font-size: 0.88rem; }
+
+    .syncing { font-size: 0.82rem; color: #a0aec0; }
 
     @media (max-width: 680px) {
-      #calendars { flex-direction: column; }
+      #calendars, #group-calendars { flex-direction: column; }
       .month { min-width: unset; }
     }
   </style>
@@ -204,12 +223,22 @@
   <p>Powered by Claude</p>
 </header>
 
+<div id="setup-banner" class="setup-banner" style="display:none">
+  <strong>Setup required:</strong> Open <code>index.html</code> and replace the <code>FIREBASE_CONFIG</code> placeholder with your own Firebase project credentials to enable real-time sharing between users.
+  See the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a> to create a free project.
+</div>
+
 <div class="container">
 
   <!-- ── Section 1 ── -->
   <section>
     <h2>My Availability</h2>
-    <p class="subtitle">Click on days when you are <strong>not available</strong>. Then click Validate to copy your result.</p>
+    <p class="subtitle">Enter your name, click days when you are <strong>not available</strong>, then submit.</p>
+
+    <div class="name-row">
+      <label for="user-name">Your name</label>
+      <input id="user-name" type="text" placeholder="e.g. Alice" autocomplete="off" maxlength="40">
+    </div>
 
     <div class="legend">
       <div class="legend-item"><div class="legend-dot"></div> Available</div>
@@ -219,9 +248,10 @@
     <div id="calendars"></div>
 
     <div class="actions">
-      <button id="btn-validate">Validate &amp; Copy</button>
-      <button id="btn-clear" style="background:#718096;">Clear all</button>
-      <span class="feedback" id="copy-fb"></span>
+      <button id="btn-submit">Submit to Group</button>
+      <button id="btn-copy" style="background:#4a5568;">Copy as Text</button>
+      <button id="btn-clear" style="background:#718096;">Clear</button>
+      <span class="feedback" id="action-fb"></span>
     </div>
     <div class="raw-box" id="raw-out">No dates selected yet.</div>
   </section>
@@ -229,25 +259,43 @@
   <!-- ── Section 2 ── -->
   <section>
     <h2>Group Availability</h2>
-    <p class="subtitle">Paste each person's result on a new line. Dates not marked by anyone are shown as available for the whole group.</p>
-
-    <textarea id="group-in" placeholder="Paste results here, one per line…
-Example:
-2026-04-05,2026-04-10,2026-05-20
-2026-04-10,2026-05-03,2026-06-15"></textarea>
-
-    <div class="actions">
-      <button id="btn-find">Find Available Dates</button>
-    </div>
-
-    <div id="available-out">
-      <div id="group-calendars"></div>
-    </div>
+    <p class="subtitle" id="group-subtitle">Updates in real-time as participants submit.</p>
+    <div id="participants-info"></div>
+    <div id="group-calendars"></div>
   </section>
 
 </div>
 
 <script>
+  // ── Firebase config ──────────────────────────────────────────
+  // To enable real-time sync:
+  // 1. Go to https://console.firebase.google.com/ and create a project
+  // 2. Add a Web app, copy the config object here
+  // 3. Go to Realtime Database → Create database (start in test mode)
+  const FIREBASE_CONFIG = {
+    apiKey:            "REPLACE_WITH_YOUR_API_KEY",
+    authDomain:        "REPLACE_WITH_YOUR_PROJECT.firebaseapp.com",
+    databaseURL:       "https://REPLACE_WITH_YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId:         "REPLACE_WITH_YOUR_PROJECT",
+    storageBucket:     "REPLACE_WITH_YOUR_PROJECT.appspot.com",
+    messagingSenderId: "000000000000",
+    appId:             "REPLACE_WITH_YOUR_APP_ID"
+  };
+
+  const DB_READY = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE');
+  let db = null;
+
+  if (DB_READY) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+  } else {
+    document.getElementById('setup-banner').style.display = 'flex';
+    document.getElementById('group-subtitle').textContent =
+      'Firebase not configured — set up Firebase to sync availability across users in real time.';
+    document.getElementById('btn-submit').disabled = true;
+  }
+
+  // ── Constants ────────────────────────────────────────────────
   const YEAR = new Date().getFullYear();
   const MONTHS = [
     { name: 'April', idx: 3 },
@@ -255,138 +303,118 @@ Example:
     { name: 'June',  idx: 5 },
   ];
 
-  // ── Persistence ─────────────────────────────────────────────
-  const STORAGE_DATES = 'divecal_off_dates';
-  const STORAGE_GROUP = 'divecal_group';
-
-  function saveOffDates() {
-    localStorage.setItem(STORAGE_DATES, [...offDates].sort().join(','));
+  // ── User identity ────────────────────────────────────────────
+  function getUserId() {
+    let id = localStorage.getItem('divecal_uid');
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem('divecal_uid', id);
+    }
+    return id;
   }
-  function loadOffDates() {
-    const raw = localStorage.getItem(STORAGE_DATES);
+  const MY_ID = getUserId();
+
+  // ── Local state ──────────────────────────────────────────────
+  const offDates = new Set();
+
+  function saveLocal() {
+    localStorage.setItem('divecal_dates', [...offDates].sort().join(','));
+    localStorage.setItem('divecal_name',  document.getElementById('user-name').value);
+  }
+  function loadLocal() {
+    const name = localStorage.getItem('divecal_name');
+    if (name) document.getElementById('user-name').value = name;
+    const raw = localStorage.getItem('divecal_dates');
     if (raw) raw.split(',').forEach(d => { if (d) offDates.add(d); });
   }
-  function saveGroup() {
-    localStorage.setItem(STORAGE_GROUP, document.getElementById('group-in').value);
-  }
-  function loadGroup() {
-    const raw = localStorage.getItem(STORAGE_GROUP);
-    if (raw) document.getElementById('group-in').value = raw;
-  }
 
-  const offDates = new Set();   // ISO strings of unavailable dates
-
-  // ── Helpers ────────────────────────────────────────────────
-  function daysIn(year, m) { return new Date(year, m + 1, 0).getDate(); }
-  function firstDay(year, m) { return new Date(year, m, 1).getDay(); }
+  // ── Helpers ──────────────────────────────────────────────────
+  function daysIn(year, m)  { return new Date(year, m + 1, 0).getDate(); }
+  function firstDay(year, m){ return new Date(year, m, 1).getDay(); }
   function iso(y, m, d) {
     return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
-  function allDates() {
-    const out = [];
-    MONTHS.forEach(({ idx }) => {
-      for (let d = 1; d <= daysIn(YEAR, idx); d++) out.push(iso(YEAR, idx, d));
-    });
-    return out;
+
+  function feedback(text, color = '#38a169') {
+    const el = document.getElementById('action-fb');
+    el.style.color = color;
+    el.textContent = text;
+    setTimeout(() => el.textContent = '', 3000);
   }
 
-  // ── Build calendars ─────────────────────────────────────────
+  // ── Build personal calendars ─────────────────────────────────
   function buildCalendars() {
     const wrap = document.getElementById('calendars');
     wrap.innerHTML = '';
-
     MONTHS.forEach(({ name, idx }) => {
       const monthEl = document.createElement('div');
       monthEl.className = 'month';
-
       const h3 = document.createElement('h3');
       h3.textContent = `${name} ${YEAR}`;
       monthEl.appendChild(h3);
-
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
-
-      // Day-of-week headers
       ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(label => {
         const hdr = document.createElement('div');
         hdr.className = 'day-hdr';
         hdr.textContent = label;
         grid.appendChild(hdr);
       });
-
-      // Blank spacers before the 1st
       for (let i = 0; i < firstDay(YEAR, idx); i++) {
-        const sp = document.createElement('div');
-        sp.className = 'day-empty';
-        grid.appendChild(sp);
+        grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-empty' }));
       }
-
-      // Day cells
       for (let d = 1; d <= daysIn(YEAR, idx); d++) {
         const dateStr = iso(YEAR, idx, d);
         const cell = document.createElement('div');
         cell.className = 'day';
-        const dow = new Date(YEAR, idx, d).getDay();
-        if (dow === 0 || dow === 6) cell.classList.add('weekend');
+        if (new Date(YEAR, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
         if (offDates.has(dateStr)) cell.classList.add('unavail');
         cell.textContent = d;
-        cell.dataset.date = dateStr;
-        cell.addEventListener('click', () => toggle(dateStr, cell));
+        cell.addEventListener('click', () => {
+          offDates.has(dateStr) ? offDates.delete(dateStr) : offDates.add(dateStr);
+          cell.classList.toggle('unavail');
+          refreshRaw();
+          saveLocal();
+        });
         grid.appendChild(cell);
       }
-
       monthEl.appendChild(grid);
       wrap.appendChild(monthEl);
     });
   }
 
-  function toggle(dateStr, cell) {
-    if (offDates.has(dateStr)) {
-      offDates.delete(dateStr);
-      cell.classList.remove('unavail');
-    } else {
-      offDates.add(dateStr);
-      cell.classList.add('unavail');
-    }
-    refreshRaw();
-    saveOffDates();
-  }
-
   function refreshRaw() {
-    const el = document.getElementById('raw-out');
     const sorted = [...offDates].sort();
-    el.textContent = sorted.length ? sorted.join(',') : 'No dates selected yet.';
+    document.getElementById('raw-out').textContent =
+      sorted.length ? sorted.join(',') : 'No dates selected yet.';
   }
 
-  // ── Validate & copy ─────────────────────────────────────────
-  document.getElementById('btn-validate').addEventListener('click', () => {
-    const sorted = [...offDates].sort();
-    const text = sorted.join(',');
-    const fb = document.getElementById('copy-fb');
+  // ── Submit to Firebase ───────────────────────────────────────
+  document.getElementById('btn-submit').addEventListener('click', () => {
+    const name = document.getElementById('user-name').value.trim();
+    if (!name) { feedback('Please enter your name first.', '#c53030'); return; }
+    saveLocal();
+    const dates = [...offDates].sort().join(',');
+    db.ref('divecalendar/users/' + MY_ID).set({ name, dates, updatedAt: Date.now() })
+      .then(() => feedback('Submitted!'))
+      .catch(() => feedback('Error saving — check Firebase config.', '#c53030'));
+  });
 
-    if (!text) {
-      fb.textContent = 'No dates selected.';
-      setTimeout(() => fb.textContent = '', 2000);
-      return;
-    }
-
-    const doCopy = () => {
-      fb.textContent = 'Copied to clipboard!';
-      setTimeout(() => fb.textContent = '', 3000);
-    };
-
+  // ── Copy as text ─────────────────────────────────────────────
+  document.getElementById('btn-copy').addEventListener('click', () => {
+    const text = [...offDates].sort().join(',');
+    if (!text) { feedback('No dates selected.', '#718096'); return; }
+    const copy = () => feedback('Copied to clipboard!');
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(doCopy).catch(() => fallbackCopy(text, doCopy));
+      navigator.clipboard.writeText(text).then(copy).catch(() => fallbackCopy(text, copy));
     } else {
-      fallbackCopy(text, doCopy);
+      fallbackCopy(text, copy);
     }
   });
 
   function fallbackCopy(text, cb) {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
+    const ta = Object.assign(document.createElement('textarea'),
+      { value: text, style: 'position:fixed;opacity:0' });
     document.body.appendChild(ta);
     ta.select();
     document.execCommand('copy');
@@ -394,114 +422,105 @@ Example:
     cb();
   }
 
-  // ── Clear all ───────────────────────────────────────────────
+  // ── Clear ────────────────────────────────────────────────────
   document.getElementById('btn-clear').addEventListener('click', () => {
     offDates.clear();
-    document.querySelectorAll('.day.unavail').forEach(c => c.classList.remove('unavail'));
+    document.querySelectorAll('#calendars .day.unavail').forEach(c => c.classList.remove('unavail'));
     refreshRaw();
-    saveOffDates();
+    saveLocal();
   });
 
-  // ── Group availability ──────────────────────────────────────
-  document.getElementById('btn-find').addEventListener('click', () => {
-    const raw = document.getElementById('group-in').value.trim();
-    const infoEl = document.getElementById('available-out');
-    const wrap = document.getElementById('group-calendars');
+  // ── Group calendar (real-time) ───────────────────────────────
+  function renderGroupCalendar(data) {
+    const infoEl   = document.getElementById('participants-info');
+    const calWrap  = document.getElementById('group-calendars');
+    calWrap.innerHTML = '';
 
-    if (!raw) {
-      infoEl.innerHTML = '<p class="no-dates">Please paste at least one result.</p>';
+    const entries = Object.entries(data).filter(([, v]) => v && v.name);
+    if (!entries.length) {
+      infoEl.innerHTML = '<p class="no-dates">No submissions yet.</p>';
       return;
     }
 
-    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-    const participantCount = lines.length;
-
-    // Collect all unavailable dates across all participants
+    // Aggregate unavailable dates
     const anyUnavail = new Set();
-    lines.forEach(line => {
-      line.split(',').forEach(tok => {
-        const d = tok.trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) anyUnavail.add(d);
+    entries.forEach(([, { dates }]) => {
+      (dates || '').split(',').forEach(d => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d.trim())) anyUnavail.add(d.trim());
       });
     });
 
-    const availCount = allDates().filter(d => !anyUnavail.has(d)).length;
+    // Count available dates
+    let availCount = 0;
+    MONTHS.forEach(({ idx }) => {
+      for (let d = 1; d <= daysIn(YEAR, idx); d++)
+        if (!anyUnavail.has(iso(YEAR, idx, d))) availCount++;
+    });
 
-    // Build calendar display
-    wrap.innerHTML = '';
+    // Participants pills
+    const pills = entries.map(([uid, { name }]) =>
+      `<span class="participant-pill${uid === MY_ID ? ' is-me' : ''}">${name}${uid === MY_ID ? ' (me)' : ''}</span>`
+    ).join('');
 
-    // Legend + info header
-    const header = document.createElement('div');
-    header.innerHTML = `
-      <p class="result-info" style="margin-bottom:0.75rem">
-        ${participantCount} participant${participantCount > 1 ? 's' : ''}
-        — <strong style="color:#276749">${availCount}</strong> date${availCount !== 1 ? 's' : ''} where everyone is available
+    infoEl.innerHTML = `
+      <div class="participants-row">${pills}</div>
+      <p class="result-info">
+        ${entries.length} participant${entries.length > 1 ? 's' : ''}
+        — <strong style="color:#276749">${availCount}</strong>
+        date${availCount !== 1 ? 's' : ''} where everyone is available
       </p>
-      <div class="group-legend">
+      <div class="legend" style="margin-bottom:1rem">
         <div class="legend-item"><div class="legend-dot grp-avail"></div> Everyone available</div>
         <div class="legend-item"><div class="legend-dot grp-unavail"></div> Someone unavailable</div>
       </div>`;
-    wrap.appendChild(header);
 
-    if (availCount === 0) {
-      const msg = document.createElement('p');
-      msg.className = 'no-dates';
-      msg.textContent = 'No dates where everyone is available.';
-      wrap.appendChild(msg);
+    if (!availCount) {
+      calWrap.innerHTML = '<p class="no-dates">No dates where everyone is available.</p>';
       return;
     }
 
-    // One calendar per month
     MONTHS.forEach(({ name, idx }) => {
       const monthEl = document.createElement('div');
       monthEl.className = 'month';
-
       const h3 = document.createElement('h3');
       h3.textContent = `${name} ${YEAR}`;
       monthEl.appendChild(h3);
-
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
-
       ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(label => {
         const hdr = document.createElement('div');
         hdr.className = 'day-hdr';
         hdr.textContent = label;
         grid.appendChild(hdr);
       });
-
       for (let i = 0; i < firstDay(YEAR, idx); i++) {
-        const sp = document.createElement('div');
-        sp.className = 'day-empty';
-        grid.appendChild(sp);
+        grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-empty' }));
       }
-
       for (let d = 1; d <= daysIn(YEAR, idx); d++) {
         const dateStr = iso(YEAR, idx, d);
         const cell = document.createElement('div');
         cell.className = 'day';
-        const dow = new Date(YEAR, idx, d).getDay();
-        if (dow === 0 || dow === 6) cell.classList.add('weekend');
-        if (anyUnavail.has(dateStr)) {
-          cell.classList.add('grp-unavail');
-        } else {
-          cell.classList.add('grp-avail');
-        }
+        if (new Date(YEAR, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
+        cell.classList.add(anyUnavail.has(dateStr) ? 'grp-unavail' : 'grp-avail');
         cell.textContent = d;
         grid.appendChild(cell);
       }
-
       monthEl.appendChild(grid);
-      wrap.appendChild(monthEl);
+      calWrap.appendChild(monthEl);
     });
-  });
+  }
 
-  // ── Init ────────────────────────────────────────────────────
-  loadOffDates();
+  // Subscribe to real-time updates
+  if (db) {
+    db.ref('divecalendar/users').on('value', snapshot => {
+      renderGroupCalendar(snapshot.val() || {});
+    });
+  }
+
+  // ── Init ─────────────────────────────────────────────────────
+  loadLocal();
   buildCalendars();
   refreshRaw();
-  loadGroup();
-  document.getElementById('group-in').addEventListener('input', saveGroup);
 </script>
 
 </body>
