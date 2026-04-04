@@ -444,6 +444,11 @@
     document.querySelectorAll('#calendars .day.unavail').forEach(c => c.classList.remove('unavail'));
     refreshRaw();
     saveLocal();
+    if (db) {
+      db.ref('divecalendar/users/' + MY_ID).remove()
+        .then(() => feedback('Cleared and removed from group.', '#718096'))
+        .catch(() => feedback('Cleared locally, but DB remove failed.', '#c53030'));
+    }
   });
 
   // ── Group calendar (real-time) ───────────────────────────────
