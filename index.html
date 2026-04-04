@@ -412,13 +412,20 @@
   });
 
   function fallbackCopy(text, cb) {
-    const ta = Object.assign(document.createElement('textarea'),
-      { value: text, style: 'position:fixed;opacity:0' });
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
     cb();
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+              .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   // ── Clear ────────────────────────────────────────────────────
@@ -458,7 +465,7 @@
 
     // Participants pills
     const pills = entries.map(([uid, { name }]) =>
-      `<span class="participant-pill${uid === MY_ID ? ' is-me' : ''}">${name}${uid === MY_ID ? ' (me)' : ''}</span>`
+      `<span class="participant-pill${uid === MY_ID ? ' is-me' : ''}">${escapeHtml(name)}${uid === MY_ID ? ' (me)' : ''}</span>`
     ).join('');
 
     infoEl.innerHTML = `
