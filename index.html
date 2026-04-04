@@ -3,147 +3,327 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dive Calendar - Availability</title>
+  <title>Dive Calendar</title>
 
-  <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ── Tokens ───────────────────────────────────────────────── */
+    :root {
+      --navy:        #0d3b5e;
+      --navy-dark:   #082d47;
+      --blue:        #1565a7;
+      --sky:         #0891b2;
+      --sky-light:   #e0f2fe;
+      --sky-mid:     #bae6fd;
+      --green:       #059669;
+      --green-light: #d1fae5;
+      --green-dark:  #065f46;
+      --green-we:    #0d9488;
+      --green-we-bg: #99f6e4;
+      --red:         #e11d48;
+      --red-light:   #ffe4e6;
+      --neutral-50:  #f8fafc;
+      --neutral-100: #f1f5f9;
+      --neutral-200: #e2e8f0;
+      --neutral-300: #cbd5e1;
+      --neutral-400: #94a3b8;
+      --neutral-500: #64748b;
+      --neutral-600: #475569;
+      --neutral-700: #334155;
+      --neutral-900: #0f172a;
+      --white:       #ffffff;
+      --radius-sm:   6px;
+      --radius:      12px;
+      --radius-lg:   18px;
+      --shadow-sm:   0 1px 2px rgba(0,0,0,.06);
+      --shadow:      0 1px 3px rgba(0,0,0,.07), 0 6px 20px rgba(0,0,0,.05);
+      --shadow-lg:   0 4px 6px rgba(0,0,0,.07), 0 20px 40px rgba(0,0,0,.1);
+    }
+
+    /* ── Reset ────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #eef2f7;
-      color: #2d3748;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--neutral-100);
+      color: var(--neutral-700);
       min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
+    /* ── Header ───────────────────────────────────────────────── */
     header {
-      background: linear-gradient(135deg, #1a365d, #2b6cb0);
+      background: linear-gradient(140deg, var(--navy-dark) 0%, var(--navy) 45%, var(--sky) 100%);
       color: white;
-      padding: 2rem;
+      padding: 2.75rem 1.5rem 2.25rem;
       text-align: center;
     }
-    header h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.3rem; }
-    header p { opacity: 0.75; font-size: 0.85rem; }
+    header h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.35rem;
+    }
+    header h1 span {
+      font-size: 0.85rem;
+      font-weight: 400;
+      opacity: 0.5;
+      letter-spacing: 0;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    header p {
+      font-size: 0.78rem;
+      opacity: 0.5;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
 
-    /* Setup banner */
+    /* ── Room bar ─────────────────────────────────────────────── */
+    .room-bar {
+      background: var(--navy-dark);
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .room-bar .room-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.4);
+    }
+    .room-bar strong {
+      color: white;
+      font-size: 0.88rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.1);
+      padding: 0.15rem 0.65rem;
+      border-radius: 99px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .room-bar .exit-btn {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.65);
+      padding: 0.25rem 0.8rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .room-bar .exit-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    /* ── Setup banner ─────────────────────────────────────────── */
     .setup-banner {
       background: #fffbeb;
-      border-bottom: 2px solid #f6ad55;
-      padding: 0.85rem 1.5rem;
-      font-size: 0.88rem;
-      color: #744210;
+      border-bottom: 2px solid #fbbf24;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.85rem;
+      color: #78350f;
       display: flex;
       gap: 0.5rem;
       flex-wrap: wrap;
       align-items: center;
     }
-    .setup-banner a { color: #2b6cb0; font-weight: 600; }
-    .setup-banner code {
-      background: #fef3c7;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-size: 0.82rem;
-    }
+    .setup-banner a { color: var(--blue); font-weight: 600; }
+    .setup-banner code { background: #fef3c7; padding: 1px 5px; border-radius: 4px; font-size: 0.8rem; }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+    /* ── Layout ───────────────────────────────────────────────── */
+    .container { max-width: 1120px; margin: 0 auto; padding: 2rem 1.25rem; }
 
-    section {
-      background: white;
-      border-radius: 12px;
+    /* ── Section cards ────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--neutral-200);
       padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+      margin-bottom: 1.75rem;
+      box-shadow: var(--shadow);
     }
-    section h2 { font-size: 1.3rem; color: #1a365d; margin-bottom: 0.4rem; }
-    .subtitle { color: #718096; font-size: 0.88rem; margin-bottom: 1.25rem; }
+    .card-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+    .card-step {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--sky);
+      background: var(--sky-light);
+      padding: 0.2rem 0.6rem;
+      border-radius: 99px;
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .card-subtitle {
+      font-size: 0.83rem;
+      color: var(--neutral-400);
+      margin-left: auto;
+    }
 
-    /* Name row */
+    /* ── Name input ───────────────────────────────────────────── */
     .name-row {
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      margin-bottom: 1.25rem;
-      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
     }
-    .name-row label { font-size: 0.9rem; font-weight: 600; color: #2d3748; white-space: nowrap; }
+    .name-row label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--neutral-600);
+      white-space: nowrap;
+    }
     .name-row input {
-      padding: 0.45rem 0.75rem;
-      border: 2px solid #e2e8f0;
-      border-radius: 8px;
+      padding: 0.5rem 0.85rem;
+      border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
       font-size: 0.9rem;
       outline: none;
-      width: 180px;
-      transition: border-color 0.15s;
+      width: 200px;
+      color: var(--neutral-700);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: var(--neutral-50);
     }
-    .name-row input:focus { border-color: #90cdf4; }
+    .name-row input:focus {
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+      background: white;
+    }
 
-    /* Legend */
+    /* ── Legend ───────────────────────────────────────────────── */
     .legend {
       display: flex;
-      gap: 1.5rem;
-      margin-bottom: 1.25rem;
-      font-size: 0.82rem;
-      color: #718096;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
       flex-wrap: wrap;
     }
-    .legend-item { display: flex; align-items: center; gap: 0.4rem; }
-    .legend-dot { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #e2e8f0; }
-    .legend-dot.unavail  { background: #fed7d7; border-color: #fc8181; }
-    .legend-dot.grp-avail   { background: #c6f6d5; border-color: #68d391; }
-    .legend-dot.grp-unavail { background: #fff5f5; border-color: #e2e8f0; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      color: var(--neutral-500);
+      font-weight: 500;
+    }
+    .legend-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--neutral-200);
+      background: var(--white);
+    }
+    .legend-dot.unavail    { background: var(--red); border-color: var(--red); }
+    .legend-dot.grp-avail  { background: var(--green); border-color: var(--green); }
+    .legend-dot.grp-unavail{ background: var(--neutral-200); border-color: var(--neutral-200); }
 
-    /* Calendars */
-    #calendars { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-
-    .month { flex: 1; min-width: 260px; }
-    .month h3 {
-      text-align: center;
-      color: #2b6cb0;
-      font-size: 1rem;
-      margin-bottom: 0.6rem;
-      font-weight: 600;
+    /* ── Calendars wrap ───────────────────────────────────────── */
+    #calendars, #group-calendars {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
 
+    /* ── Month card ───────────────────────────────────────────── */
+    .month {
+      flex: 1;
+      min-width: 240px;
+      background: var(--neutral-50);
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius);
+      padding: 1rem 0.85rem 0.85rem;
+    }
+    .month h3 {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--neutral-500);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Calendar grid ────────────────────────────────────────── */
     .cal-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 3px;
+      gap: 2px;
     }
-
     .day-hdr {
       text-align: center;
-      font-size: 0.68rem;
+      font-size: 0.62rem;
       font-weight: 700;
-      color: #a0aec0;
-      padding: 3px 0;
+      color: var(--neutral-400);
+      padding: 3px 0 5px;
       text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
+    .day-hdr.we { color: var(--sky); }
 
     .day {
-      text-align: center;
-      padding: 7px 2px;
-      border-radius: 6px;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      font-size: 0.83rem;
-      border: 2px solid transparent;
-      transition: background 0.12s, border-color 0.12s;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--neutral-600);
+      transition: background 0.1s, color 0.1s, transform 0.1s;
       user-select: none;
+      position: relative;
     }
-    .day:hover { background: #ebf8ff; border-color: #90cdf4; }
-    .day.weekend { color: #a0aec0; }
-    .day.unavail { background: #fed7d7; color: #c53030; border-color: #fc8181; font-weight: 600; }
-    .day.unavail:hover { background: #feb2b2; }
-    .day-empty { }
+    .day:hover { background: var(--sky-light); color: var(--sky); }
+    .day.weekend { color: var(--sky); font-weight: 600; }
+    .day.unavail {
+      background: var(--red);
+      color: white;
+      font-weight: 700;
+      border-radius: 50%;
+    }
+    .day.unavail:hover { background: #be123c; transform: scale(0.95); }
+    .day-empty { aspect-ratio: 1; }
 
-    /* Group calendar day states */
-    .day.grp-avail   { background: #c6f6d5; color: #276749; border-color: #68d391; font-weight: 600; }
-    .day.grp-unavail { background: #fff5f5; color: #cbd5e0; border-color: transparent; cursor: default; }
-    .day.grp-unavail:hover { background: #fff5f5; border-color: transparent; }
+    /* Group calendar states */
+    .day.grp-avail {
+      background: var(--green);
+      color: white;
+      font-weight: 700;
+      border-radius: 50%;
+    }
+    .day.grp-avail:hover { background: #047857; }
+    .day.grp-avail.weekend {
+      background: var(--green-we);
+      box-shadow: 0 0 0 2px var(--green-we-bg);
+    }
+    .day.grp-unavail {
+      color: var(--neutral-300);
+      cursor: default;
+    }
+    .day.grp-unavail:hover { background: transparent; color: var(--neutral-300); }
+    .day.grp-unavail.weekend { color: var(--neutral-400); background: #fef9ec; border-radius: var(--radius-sm); }
 
-    /* Actions */
+    /* ── Actions row ──────────────────────────────────────────── */
     .actions {
       margin-top: 1.5rem;
       display: flex;
@@ -151,163 +331,202 @@
       gap: 0.75rem;
       flex-wrap: wrap;
     }
-
-    button {
-      background: #2b6cb0;
+    .btn-primary {
+      background: var(--blue);
       color: white;
       border: none;
-      padding: 0.55rem 1.3rem;
-      border-radius: 8px;
-      font-size: 0.92rem;
+      padding: 0.55rem 1.4rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, transform 0.1s;
     }
-    button:hover { background: #2c5282; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary:hover { background: var(--navy); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--red);
+      border: 1.5px solid var(--red);
+      padding: 0.5rem 1.2rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { background: var(--red-light); }
+    .feedback { font-size: 0.82rem; font-weight: 500; }
 
-    .feedback { font-size: 0.85rem; font-weight: 500; }
-
+    /* ── Raw output ───────────────────────────────────────────── */
     .raw-box {
       margin-top: 1rem;
-      padding: 0.7rem 1rem;
-      background: #f7fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      font-family: monospace;
-      font-size: 0.82rem;
-      color: #4a5568;
+      padding: 0.65rem 0.9rem;
+      background: var(--neutral-50);
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--neutral-400);
       word-break: break-all;
-      min-height: 2.5rem;
+      min-height: 2.25rem;
     }
 
-    /* Participants list */
+    /* ── Participants ─────────────────────────────────────────── */
     .participants-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 0.75rem;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
     }
     .participant-pill {
-      background: #ebf8ff;
-      color: #2b6cb0;
-      border: 1px solid #90cdf4;
+      background: var(--sky-light);
+      color: var(--sky);
+      border: 1.5px solid var(--sky-mid);
       border-radius: 99px;
       padding: 0.2rem 0.75rem;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       font-weight: 600;
     }
     .participant-pill.is-me {
-      background: #c6f6d5;
-      color: #276749;
-      border-color: #68d391;
+      background: var(--green-light);
+      color: var(--green-dark);
+      border-color: #6ee7b7;
     }
 
-    #group-calendars { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.25rem; }
-
-    .result-info { font-size: 0.83rem; color: #718096; margin-bottom: 0.75rem; }
-    .no-dates { color: #718096; font-style: italic; font-size: 0.88rem; }
-
-    .syncing { font-size: 0.82rem; color: #a0aec0; }
-
-    /* Room bar */
-    .room-bar {
-      background: #1e4080;
-      padding: 0.55rem 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      flex-wrap: wrap;
+    .result-info {
+      font-size: 0.82rem;
+      color: var(--neutral-500);
+      margin-bottom: 1rem;
     }
-    .room-bar .room-label { color: rgba(255,255,255,0.55); font-size: 0.82rem; }
-    .room-bar strong { color: white; font-size: 0.88rem; }
-    .room-bar button {
-      padding: 0.28rem 0.75rem;
-      font-size: 0.8rem;
-      background: rgba(255,255,255,0.15);
+    .result-info strong { color: var(--green-dark); }
+    .no-dates {
+      color: var(--neutral-400);
+      font-size: 0.85rem;
+      font-style: italic;
     }
-    .room-bar button:hover { background: rgba(255,255,255,0.28); }
-    .room-bar .room-fb { color: rgba(255,255,255,0.8); font-size: 0.82rem; }
 
-    /* Weekend column headers */
-    .day-hdr.we { color: #718096; background: #f0f4f8; border-radius: 4px; }
-
-    /* Weekend days in group calendar */
-    .day.grp-avail.weekend   { background: #9ae6b4; border-color: #48bb78; color: #22543d; }
-    .day.grp-unavail.weekend { background: #fffaf0; color: #c0b090; }
-
-    /* Room overlay */
-    #room-overlay {
-      position: fixed; inset: 0;
-      background: #eef2f7;
-      display: flex; align-items: center; justify-content: center;
-      z-index: 2000;
-    }
-    .room-overlay-box {
-      background: white;
-      border-radius: 14px;
-      padding: 2rem 2.5rem;
-      width: 100%;
-      max-width: 360px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-      text-align: center;
-    }
-    .room-overlay-box h2 { color: #1a365d; margin-bottom: 0.5rem; }
-    .room-overlay-box p  { color: #718096; font-size: 0.88rem; margin-bottom: 1.25rem; }
-    .room-overlay-box input {
-      width: 100%; padding: 0.6rem 0.85rem;
-      border: 2px solid #e2e8f0; border-radius: 8px;
-      font-size: 0.95rem; outline: none; margin-bottom: 0.75rem;
-      text-align: center;
-    }
-    .room-overlay-box input:focus { border-color: #90cdf4; }
-    .room-overlay-box button { width: 100%; padding: 0.65rem; font-size: 1rem; }
-
-    /* Tooltip */
+    /* ── Tooltip ──────────────────────────────────────────────── */
     #tooltip {
       position: fixed;
       display: none;
-      background: #1a365d;
+      background: var(--neutral-900);
       color: white;
-      padding: 0.35rem 0.7rem;
-      border-radius: 6px;
-      font-size: 0.78rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 500;
       pointer-events: none;
       z-index: 1000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      box-shadow: var(--shadow-lg);
       max-width: 220px;
+      line-height: 1.4;
     }
 
+    /* ── Room overlay ─────────────────────────────────────────── */
+    #room-overlay {
+      position: fixed; inset: 0;
+      background: var(--neutral-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 1.5rem;
+    }
+    .room-overlay-box {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--neutral-200);
+      text-align: center;
+    }
+    .room-overlay-box .overlay-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    .room-overlay-box h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.02em;
+    }
+    .room-overlay-box p {
+      color: var(--neutral-400);
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .room-overlay-box input {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      text-align: center;
+      outline: none;
+      margin-bottom: 0.75rem;
+      color: var(--neutral-700);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .room-overlay-box input:focus {
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+    }
+    .room-overlay-box button {
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .room-overlay-box button:hover { background: var(--navy); }
+
+    /* ── Responsive ───────────────────────────────────────────── */
     @media (max-width: 680px) {
+      header h1 { font-size: 1.6rem; }
+      .card { padding: 1.25rem; }
       #calendars, #group-calendars { flex-direction: column; }
       .month { min-width: unset; }
+      .card-subtitle { display: none; }
     }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>Dive Calendar <span id="app-version" style="font-size:0.9rem;font-weight:400;opacity:0.6;vertical-align:middle;"></span></h1>
+  <h1>Dive Calendar <span id="app-version"></span></h1>
   <p>Powered by Claude</p>
 </header>
 
 <div class="room-bar">
-  <span class="room-label">Room:</span>
+  <span class="room-label">Room</span>
   <strong id="room-display"></strong>
-  <button id="btn-exit-room" style="background:rgba(255,255,255,0.15);margin-left:auto;">Exit Room</button>
+  <button id="btn-exit-room" class="exit-btn">Exit room</button>
 </div>
 
 <div id="setup-banner" class="setup-banner" style="display:none">
-  <strong>Setup required:</strong> Open <code>index.html</code> and replace the <code>FIREBASE_CONFIG</code> placeholder with your own Firebase project credentials to enable real-time sharing between users.
-  See the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a> to create a free project.
+  <strong>Setup required:</strong> Replace <code>FIREBASE_CONFIG</code> in <code>index.html</code> with your Firebase project credentials.
+  See the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a>.
 </div>
 
 <div class="container">
 
   <!-- ── Section 1 ── -->
-  <section>
-    <h2>My Availability</h2>
-    <p class="subtitle">Enter your name, click days when you are <strong>not available</strong>, then submit.</p>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-step">Step 1</span>
+      <span class="card-title">My Availability</span>
+      <span class="card-subtitle">Click days you are <strong>not</strong> available</span>
+    </div>
 
     <div class="name-row">
       <label for="user-name">Your name</label>
@@ -322,20 +541,23 @@
     <div id="calendars"></div>
 
     <div class="actions">
-      <button id="btn-submit">Submit to Group</button>
-      <button id="btn-clear" style="background:#718096;">Clear</button>
+      <button id="btn-submit" class="btn-primary">Submit to group</button>
+      <button id="btn-clear" class="btn-ghost">Clear</button>
       <span class="feedback" id="action-fb"></span>
     </div>
     <div class="raw-box" id="raw-out">No dates selected yet.</div>
-  </section>
+  </div>
 
   <!-- ── Section 2 ── -->
-  <section>
-    <h2>Group Availability</h2>
-    <p class="subtitle" id="group-subtitle">Updates in real-time as participants submit.</p>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-step">Step 2</span>
+      <span class="card-title">Group Availability</span>
+      <span class="card-subtitle" id="group-subtitle">Updates in real-time</span>
+    </div>
     <div id="participants-info"></div>
     <div id="group-calendars"></div>
-  </section>
+  </div>
 
 </div>
 
@@ -343,8 +565,9 @@
 
 <div id="room-overlay" style="display:none">
   <div class="room-overlay-box">
+    <div class="overlay-icon">🤿</div>
     <h2>Join a Room</h2>
-    <p>Enter your group's room name to share availability.</p>
+    <p>Enter your group's room name to start sharing availability.</p>
     <input id="overlay-room-input" type="text" placeholder="e.g. dive-club-2026" maxlength="40" autocomplete="off">
     <button id="overlay-join-btn">Join Room</button>
   </div>
@@ -352,7 +575,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '0.3.4';
+  const VERSION = '1.0.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -462,7 +685,7 @@
     return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
 
-  function feedback(text, color = '#38a169') {
+  function feedback(text, color = '#059669') {
     const el = document.getElementById('action-fb');
     el.style.color = color;
     el.textContent = text;
@@ -519,14 +742,13 @@
   // ── Submit to Firebase ───────────────────────────────────────
   document.getElementById('btn-submit').addEventListener('click', () => {
     const name = document.getElementById('user-name').value.trim();
-    if (!name) { feedback('Please enter your name first.', '#c53030'); return; }
+    if (!name) { feedback('Please enter your name first.', '#e11d48'); return; }
     saveLocal();
     const dates = [...offDates].sort().join(',');
     db.ref('divecalendar/rooms/' + ROOM_ID + '/users/' + MY_ID).set({ name, dates, updatedAt: Date.now() })
       .then(() => feedback('Submitted!'))
-      .catch(() => feedback('Error saving — check Firebase config.', '#c53030'));
+      .catch(() => feedback('Error saving — check Firebase config.', '#e11d48'));
   });
-
 
   function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -541,8 +763,8 @@
     saveLocal();
     if (db) {
       db.ref('divecalendar/rooms/' + ROOM_ID + '/users/' + MY_ID).remove()
-        .then(() => feedback('Cleared and removed from group.', '#718096'))
-        .catch(() => feedback('Cleared locally, but DB remove failed.', '#c53030'));
+        .then(() => feedback('Cleared and removed from group.', '#64748b'))
+        .catch(() => feedback('Cleared locally, but DB remove failed.', '#e11d48'));
     }
   });
 
@@ -587,10 +809,10 @@
       <div class="participants-row">${pills}</div>
       <p class="result-info">
         ${entries.length} participant${entries.length > 1 ? 's' : ''}
-        — <strong style="color:#276749">${availCount}</strong>
+        — <strong>${availCount}</strong>
         date${availCount !== 1 ? 's' : ''} where everyone is available
       </p>
-      <div class="legend" style="margin-bottom:1rem">
+      <div class="legend" style="margin-bottom:1.25rem">
         <div class="legend-item"><div class="legend-dot grp-avail"></div> Everyone available</div>
         <div class="legend-item"><div class="legend-dot grp-unavail"></div> Someone unavailable</div>
       </div>`;
@@ -642,16 +864,15 @@
   // Subscribe to real-time updates
   if (db) {
     document.getElementById('participants-info').innerHTML =
-      '<p class="no-dates">Connecting to database…</p>';
+      '<p class="no-dates">Connecting…</p>';
     db.ref('divecalendar/rooms/' + ROOM_ID + '/users').on(
       'value',
       snapshot => { renderGroupCalendar(snapshot.val() || {}); },
       error  => {
         document.getElementById('participants-info').innerHTML =
-          `<p class="no-dates" style="color:#c53030">
+          `<p class="no-dates" style="color:#e11d48">
             Firebase error: ${escapeHtml(error.message)}<br>
-            If you set custom security rules, make sure <code>.read: true</code>
-            is on the <code>users</code> node, not the <code>$userId</code> node.
+            Make sure <code>.read: true</code> is on the <code>users</code> node in your security rules.
            </p>`;
       }
     );
