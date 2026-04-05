@@ -773,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.4.0';
+  const VERSION = '1.4.1';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -821,10 +821,11 @@
     }
     const url = new URL(window.location.href);
     url.searchParams.set('room', room);
+    url.hash = '';
     window.location.href = url.toString();
   }
 
-  const IS_CREATE = new URLSearchParams(window.location.search).has('create');
+  const IS_CREATE = window.location.hash === '#create';
 
   // ── Custom month picker (used on create page) ────────────────
   const MNAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -882,9 +883,7 @@
     document.getElementById('overlay-landing').style.display = 'flex';
 
     document.getElementById('btn-go-create').addEventListener('click', () => {
-      const url = new URL(window.location.href);
-      url.searchParams.set('create', '');
-      window.location.href = url.toString();
+      window.location.hash = '#create';
     });
 
     function doJoin() {
@@ -912,7 +911,7 @@
     const endPicker   = makeMonthPicker(document.getElementById('picker-end'),   endDate.getFullYear(), endDate.getMonth() + 1);
 
     document.getElementById('btn-back-create').addEventListener('click', () => {
-      window.location.href = window.location.pathname;
+      window.location.hash = '';
     });
 
     function doCreate() {
