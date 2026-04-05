@@ -522,24 +522,30 @@
     }
     .room-overlay-box button:hover { background: var(--navy); }
 
-    /* Overlay mode tabs */
-    .overlay-tabs {
-      display: flex;
+    /* Overlay separator */
+    .overlay-sep {
+      display: flex; align-items: center; gap: 0.6rem;
+      margin: 0.85rem 0; color: var(--neutral-400); font-size: 0.75rem;
+    }
+    .overlay-sep::before, .overlay-sep::after {
+      content: ''; flex: 1; height: 1px; background: var(--neutral-200);
+    }
+
+    /* Back link */
+    .overlay-back {
+      display: inline-block; width: auto; background: none; border: none;
+      color: var(--neutral-400); font-size: 0.8rem; font-weight: 500;
+      padding: 0; margin-bottom: 1.25rem; cursor: pointer;
+      text-align: left; transition: color 0.12s;
+    }
+    .overlay-back:hover { color: var(--navy); background: none; }
+
+    /* Ghost action button */
+    .btn-overlay-ghost {
+      background: none; color: var(--blue);
       border: 1.5px solid var(--neutral-200);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      margin-bottom: 1.25rem;
     }
-    .overlay-tab {
-      flex: 1; padding: 0.6rem;
-      background: none; border: none;
-      font-size: 0.88rem; font-weight: 600;
-      color: var(--neutral-500); cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-      border-radius: 0; width: auto;
-    }
-    .overlay-tab.active { background: var(--blue); color: white; }
-    .overlay-tab:hover:not(.active) { background: var(--neutral-100); color: var(--navy); }
+    .btn-overlay-ghost:hover { background: var(--neutral-100); color: var(--navy); border-color: var(--neutral-300); }
 
     /* Date range row */
     .date-range-row { margin-bottom: 0.85rem; text-align: left; }
@@ -712,17 +718,27 @@
 
 <div id="tooltip"></div>
 
-<div id="room-overlay" style="display:none">
+<!-- Landing overlay: join or navigate to create -->
+<div id="overlay-landing" style="display:none">
   <div class="room-overlay-box">
     <div class="overlay-icon">🤿</div>
     <h2>Dive Calendar</h2>
-    <p id="overlay-subtitle"></p>
-    <div class="overlay-tabs">
-      <button class="overlay-tab" data-mode="create">Create room</button>
-      <button class="overlay-tab" data-mode="join">Join room</button>
-    </div>
-    <input id="overlay-room-input" type="text" placeholder="e.g. dive-crew" maxlength="40" autocomplete="off">
-    <div class="date-range-row" id="overlay-daterange" style="display:none">
+    <input id="join-room-input" type="text" placeholder="Room name, e.g. dive-crew" maxlength="40" autocomplete="off">
+    <div class="overlay-error" id="join-error"></div>
+    <button id="btn-join-room">Join Room</button>
+    <div class="overlay-sep">or</div>
+    <button id="btn-go-create" class="btn-overlay-ghost">Create Room</button>
+  </div>
+</div>
+
+<!-- Create overlay -->
+<div id="overlay-create" style="display:none">
+  <div class="room-overlay-box">
+    <button class="overlay-back" id="btn-back-create">← Back</button>
+    <div class="overlay-icon">🤿</div>
+    <h2>Create a Room</h2>
+    <input id="create-room-input" type="text" placeholder="Room name, e.g. dive-crew" maxlength="40" autocomplete="off">
+    <div class="date-range-row">
       <label>Calendar period (max 3 months)</label>
       <div class="date-range-inputs">
         <div class="month-picker" id="picker-start">
@@ -750,14 +766,14 @@
         </div>
       </div>
     </div>
-    <div class="overlay-error" id="overlay-error"></div>
-    <button id="overlay-join-btn"></button>
+    <div class="overlay-error" id="create-error"></div>
+    <button id="btn-create-room">Create Room</button>
   </div>
 </div>
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.3.1';
+  const VERSION = '1.4.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -808,126 +824,112 @@
     window.location.href = url.toString();
   }
 
-  if (!ROOM_ID) {
-    const now = new Date();
-    const MNAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const MNAMES_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const IS_CREATE = new URLSearchParams(window.location.search).has('create');
 
-    // ── Custom month picker ──────────────────────────────────────
-    function makeMonthPicker(el, initYear, initMonth) {
-      let year = initYear, month = initMonth; // month: 1-based
-      const btn       = el.querySelector('.month-picker-btn');
-      const panel     = el.querySelector('.month-picker-panel');
-      const yearLabel = el.querySelector('.mp-year-label');
-      const grid      = el.querySelector('.month-grid');
+  // ── Custom month picker (used on create page) ────────────────
+  const MNAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MNAMES_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-      function render() {
-        btn.textContent = `${MNAMES_LONG[month - 1]} ${year}`;
-        yearLabel.textContent = year;
-        grid.innerHTML = '';
-        MNAMES_SHORT.forEach((name, i) => {
-          const pill = document.createElement('button');
-          pill.type = 'button';
-          pill.className = 'month-pill' + (i + 1 === month ? ' selected' : '');
-          pill.textContent = name;
-          pill.addEventListener('click', () => { month = i + 1; close(); render(); });
-          grid.appendChild(pill);
-        });
-      }
+  function makeMonthPicker(el, initYear, initMonth) {
+    let year = initYear, month = initMonth;
+    const btn       = el.querySelector('.month-picker-btn');
+    const panel     = el.querySelector('.month-picker-panel');
+    const yearLabel = el.querySelector('.mp-year-label');
+    const grid      = el.querySelector('.month-grid');
 
-      function open() {
-        // Close other open panels first
-        document.querySelectorAll('.month-picker-panel.open').forEach(p => {
-          if (p !== panel) {
-            p.classList.remove('open');
-            p.closest('.month-picker').querySelector('.month-picker-btn').classList.remove('open');
-          }
-        });
-        btn.classList.add('open');
-        panel.classList.add('open');
-      }
-      function close() {
-        btn.classList.remove('open');
-        panel.classList.remove('open');
-      }
-
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        panel.classList.contains('open') ? close() : open();
+    function render() {
+      btn.textContent = `${MNAMES_LONG[month - 1]} ${year}`;
+      yearLabel.textContent = year;
+      grid.innerHTML = '';
+      MNAMES_SHORT.forEach((name, i) => {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'month-pill' + (i + 1 === month ? ' selected' : '');
+        pill.textContent = name;
+        pill.addEventListener('click', () => { month = i + 1; close(); render(); });
+        grid.appendChild(pill);
       });
-      panel.addEventListener('click', e => e.stopPropagation());
-      el.querySelector('.mp-prev-year').addEventListener('click', e => { e.stopPropagation(); year--; render(); });
-      el.querySelector('.mp-next-year').addEventListener('click', e => { e.stopPropagation(); year++; render(); });
-
-      render();
-      return {
-        getVal:      () => ({ year, month }),
-        getMonthStr: () => `${year}-${String(month).padStart(2,'0')}`
-      };
     }
-
-    // Close pickers on outside click
-    document.addEventListener('click', () => {
+    function open() {
       document.querySelectorAll('.month-picker-panel.open').forEach(p => {
-        p.classList.remove('open');
-        p.closest('.month-picker').querySelector('.month-picker-btn').classList.remove('open');
+        if (p !== panel) {
+          p.classList.remove('open');
+          p.closest('.month-picker').querySelector('.month-picker-btn').classList.remove('open');
+        }
       });
+      btn.classList.add('open');
+      panel.classList.add('open');
+    }
+    function close() { btn.classList.remove('open'); panel.classList.remove('open'); }
+
+    btn.addEventListener('click', e => { e.stopPropagation(); panel.classList.contains('open') ? close() : open(); });
+    panel.addEventListener('click', e => e.stopPropagation());
+    el.querySelector('.mp-prev-year').addEventListener('click', e => { e.stopPropagation(); year--; render(); });
+    el.querySelector('.mp-next-year').addEventListener('click', e => { e.stopPropagation(); year++; render(); });
+    render();
+    return { getVal: () => ({ year, month }), getMonthStr: () => `${year}-${String(month).padStart(2,'0')}` };
+  }
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.month-picker-panel.open').forEach(p => {
+      p.classList.remove('open');
+      p.closest('.month-picker').querySelector('.month-picker-btn').classList.remove('open');
+    });
+  });
+
+  if (!ROOM_ID && !IS_CREATE) {
+    // ── Landing: join or go to create ───────────────────────────
+    document.getElementById('overlay-landing').style.display = 'flex';
+
+    document.getElementById('btn-go-create').addEventListener('click', () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('create', '');
+      window.location.href = url.toString();
     });
 
+    function doJoin() {
+      const name  = document.getElementById('join-room-input').value.trim();
+      const errEl = document.getElementById('join-error');
+      const room  = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+      if (!room) { errEl.textContent = 'Please enter a room name.'; return; }
+      errEl.textContent = '';
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', room);
+      window.location.href = url.toString();
+    }
+
+    document.getElementById('btn-join-room').addEventListener('click', doJoin);
+    document.getElementById('join-room-input').addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
+  }
+
+  if (IS_CREATE) {
+    // ── Create page ──────────────────────────────────────────────
+    document.getElementById('overlay-create').style.display = 'flex';
+
+    const now     = new Date();
     const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 1);
     const startPicker = makeMonthPicker(document.getElementById('picker-start'), now.getFullYear(), now.getMonth() + 1);
     const endPicker   = makeMonthPicker(document.getElementById('picker-end'),   endDate.getFullYear(), endDate.getMonth() + 1);
 
-    // ── Mode toggle (Create / Join) ──────────────────────────────
-    let overlayMode = 'create';
-    const tabs         = document.querySelectorAll('.overlay-tab');
-    const dateRangeRow = document.getElementById('overlay-daterange');
-    const actionBtn    = document.getElementById('overlay-join-btn');
-    const subtitleEl   = document.getElementById('overlay-subtitle');
-
-    function setMode(mode) {
-      overlayMode = mode;
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
-      dateRangeRow.style.display = mode === 'create' ? '' : 'none';
-      actionBtn.textContent = mode === 'create' ? 'Create Room' : 'Join Room';
-      subtitleEl.textContent = mode === 'create'
-        ? 'Set a name and pick the calendar period.'
-        : 'Enter the room name to join.';
-      document.getElementById('overlay-error').textContent = '';
-    }
-
-    tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
-    setMode('create');
-
-    document.getElementById('room-overlay').style.display = 'flex';
-
-    function validateAndJoin() {
-      const name  = document.getElementById('overlay-room-input').value.trim();
-      const errEl = document.getElementById('overlay-error');
-      if (!name) { errEl.textContent = 'Please enter a room name.'; return; }
-
-      if (overlayMode === 'create') {
-        const { year: sy, month: sm } = startPicker.getVal();
-        const { year: ey, month: em } = endPicker.getVal();
-        const diff = (ey - sy) * 12 + (em - sm);
-        if (diff < 0) { errEl.textContent = 'End month must be after start month.'; return; }
-        if (diff > 2) { errEl.textContent = 'Maximum 3 months.'; return; }
-        errEl.textContent = '';
-        joinRoom(name, startPicker.getMonthStr(), endPicker.getMonthStr());
-      } else {
-        const room = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
-        if (!room) { errEl.textContent = 'Invalid room name.'; return; }
-        errEl.textContent = '';
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', room);
-        window.location.href = url.toString();
-      }
-    }
-
-    document.getElementById('overlay-join-btn').addEventListener('click', validateAndJoin);
-    document.getElementById('overlay-room-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') validateAndJoin();
+    document.getElementById('btn-back-create').addEventListener('click', () => {
+      window.location.href = window.location.pathname;
     });
+
+    function doCreate() {
+      const name  = document.getElementById('create-room-input').value.trim();
+      const errEl = document.getElementById('create-error');
+      if (!name) { errEl.textContent = 'Please enter a room name.'; return; }
+      const { year: sy, month: sm } = startPicker.getVal();
+      const { year: ey, month: em } = endPicker.getVal();
+      const diff = (ey - sy) * 12 + (em - sm);
+      if (diff < 0) { errEl.textContent = 'End month must be after start month.'; return; }
+      if (diff > 2) { errEl.textContent = 'Maximum 3 months.'; return; }
+      errEl.textContent = '';
+      joinRoom(name, startPicker.getMonthStr(), endPicker.getMonthStr());
+    }
+
+    document.getElementById('btn-create-room').addEventListener('click', doCreate);
+    document.getElementById('create-room-input').addEventListener('keydown', e => { if (e.key === 'Enter') doCreate(); });
   }
 
   document.getElementById('room-display').textContent = ROOM_ID || '—';
