@@ -522,6 +522,35 @@
     }
     .room-overlay-box button:hover { background: var(--navy); }
 
+    /* Date range picker in overlay */
+    .date-range-row { margin-bottom: 0.75rem; text-align: left; }
+    .date-range-row > label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--neutral-500);
+      margin-bottom: 0.4rem;
+    }
+    .date-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .date-range-inputs input[type="month"] {
+      flex: 1;
+      padding: 0.5rem 0.5rem;
+      border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      outline: none;
+      color: var(--neutral-700);
+      transition: border-color 0.15s;
+      margin-bottom: 0;
+      text-align: center;
+    }
+    .date-range-inputs input[type="month"]:focus { border-color: var(--sky); }
+    .date-range-inputs span { color: var(--neutral-400); font-size: 0.82rem; flex-shrink: 0; }
+    .date-hint { font-size: 0.7rem; color: var(--neutral-400); margin-top: 0.35rem; display: block; }
+    .overlay-error { color: var(--red); font-size: 0.78rem; min-height: 1rem; margin-bottom: 0.25rem; text-align: center; }
+
     /* ── Responsive ───────────────────────────────────────────── */
     @media (max-width: 680px) {
       header { padding: 2rem 1rem 2.75rem; }
@@ -637,36 +666,106 @@
   <div class="room-overlay-box">
     <div class="overlay-icon">🤿</div>
     <h2>Join a Room</h2>
-    <p>Enter your group's room name to start sharing availability.</p>
-    <input id="overlay-room-input" type="text" placeholder="e.g. dive-club-2026" maxlength="40" autocomplete="off">
+    <p>Enter a room name and pick the calendar period.</p>
+    <input id="overlay-room-input" type="text" placeholder="e.g. dive-crew" maxlength="40" autocomplete="off">
+    <div class="date-range-row">
+      <label>Calendar period (max 3 months)</label>
+      <div class="date-range-inputs">
+        <input type="month" id="overlay-start">
+        <span>→</span>
+        <input type="month" id="overlay-end">
+      </div>
+      <small class="date-hint">Only used when creating a new room — existing rooms keep their period.</small>
+    </div>
+    <div class="overlay-error" id="overlay-error"></div>
     <button id="overlay-join-btn">Join Room</button>
   </div>
 </div>
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.1.3';
+  const VERSION = '1.2.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
   const ROOM_ID = (new URLSearchParams(window.location.search).get('room') || '')
     .toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
 
-  function joinRoom(name) {
+  // ── Month helpers ────────────────────────────────────────────
+  function buildMonths(startMonth, endMonth) {
+    const [sy, sm] = startMonth.split('-').map(Number);
+    const [ey, em] = endMonth.split('-').map(Number);
+    const months = [];
+    let y = sy, m = sm;
+    while ((y < ey || (y === ey && m <= em)) && months.length < 3) {
+      months.push({
+        name: new Date(y, m - 1, 1).toLocaleString('default', { month: 'long' }),
+        idx: m - 1,
+        year: y
+      });
+      if (++m > 12) { m = 1; y++; }
+    }
+    return months;
+  }
+
+  function defaultMonths() {
+    const now = new Date();
+    const sy = now.getFullYear(), sm = now.getMonth() + 1;
+    const endDate = new Date(sy, sm + 1, 1); // +2 months
+    const ey = endDate.getFullYear(), em = endDate.getMonth() + 1;
+    return buildMonths(
+      `${sy}-${String(sm).padStart(2,'0')}`,
+      `${ey}-${String(em).padStart(2,'0')}`
+    );
+  }
+
+  let MONTHS = [];
+
+  // ── Room join / overlay ──────────────────────────────────────
+  async function joinRoom(name, startMonth, endMonth) {
     const room = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
     if (!room) return;
+    if (db) {
+      const configRef = db.ref('divecalendar/rooms/' + room + '/config');
+      const snap = await configRef.once('value');
+      if (!snap.val()) await configRef.set({ startMonth, endMonth });
+    }
     const url = new URL(window.location.href);
     url.searchParams.set('room', room);
     window.location.href = url.toString();
   }
 
   if (!ROOM_ID) {
+    // Set default date range values in overlay
+    const now = new Date();
+    const padM = m => String(m).padStart(2, '0');
+    document.getElementById('overlay-start').value =
+      `${now.getFullYear()}-${padM(now.getMonth() + 1)}`;
+    const endD = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    document.getElementById('overlay-end').value =
+      `${endD.getFullYear()}-${padM(endD.getMonth() + 1)}`;
+
     document.getElementById('room-overlay').style.display = 'flex';
-    document.getElementById('overlay-join-btn').addEventListener('click', () => {
-      joinRoom(document.getElementById('overlay-room-input').value.trim());
-    });
+
+    function validateAndJoin() {
+      const name       = document.getElementById('overlay-room-input').value.trim();
+      const startMonth = document.getElementById('overlay-start').value;
+      const endMonth   = document.getElementById('overlay-end').value;
+      const errEl      = document.getElementById('overlay-error');
+      if (!name)       { errEl.textContent = 'Please enter a room name.'; return; }
+      if (!startMonth || !endMonth) { errEl.textContent = 'Please select a date range.'; return; }
+      const [sy, sm] = startMonth.split('-').map(Number);
+      const [ey, em] = endMonth.split('-').map(Number);
+      const diff = (ey - sy) * 12 + (em - sm);
+      if (diff < 0)  { errEl.textContent = 'End month must be after start month.'; return; }
+      if (diff > 2)  { errEl.textContent = 'Maximum 3 months.'; return; }
+      errEl.textContent = '';
+      joinRoom(name, startMonth, endMonth);
+    }
+
+    document.getElementById('overlay-join-btn').addEventListener('click', validateAndJoin);
     document.getElementById('overlay-room-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') joinRoom(e.target.value.trim());
+      if (e.key === 'Enter') validateAndJoin();
     });
   }
 
@@ -715,13 +814,6 @@
     showBanner('Setup required: fill in FIREBASE_CONFIG in index.html');
   }
 
-  // ── Constants ────────────────────────────────────────────────
-  const YEAR = new Date().getFullYear();
-  const MONTHS = [
-    { name: 'April', idx: 3 },
-    { name: 'May',   idx: 4 },
-    { name: 'June',  idx: 5 },
-  ];
 
   // ── User identity ────────────────────────────────────────────
   function getUserId() {
@@ -766,11 +858,11 @@
   function buildCalendars() {
     const wrap = document.getElementById('calendars');
     wrap.innerHTML = '';
-    MONTHS.forEach(({ name, idx }) => {
+    MONTHS.forEach(({ name, idx, year }) => {
       const monthEl = document.createElement('div');
       monthEl.className = 'month';
       const h3 = document.createElement('h3');
-      h3.textContent = `${name} ${YEAR}`;
+      h3.textContent = `${name} ${year}`;
       monthEl.appendChild(h3);
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
@@ -780,14 +872,14 @@
         hdr.textContent = label;
         grid.appendChild(hdr);
       });
-      for (let i = 0; i < firstDay(YEAR, idx); i++) {
+      for (let i = 0; i < firstDay(year, idx); i++) {
         grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-empty' }));
       }
-      for (let d = 1; d <= daysIn(YEAR, idx); d++) {
-        const dateStr = iso(YEAR, idx, d);
+      for (let d = 1; d <= daysIn(year, idx); d++) {
+        const dateStr = iso(year, idx, d);
         const cell = document.createElement('div');
         cell.className = 'day';
-        if (new Date(YEAR, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
+        if (new Date(year, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
         if (offDates.has(dateStr)) cell.classList.add('unavail');
         cell.textContent = d;
         cell.addEventListener('click', () => {
@@ -865,9 +957,9 @@
 
     // Count available dates
     let availCount = 0;
-    MONTHS.forEach(({ idx }) => {
-      for (let d = 1; d <= daysIn(YEAR, idx); d++)
-        if (!anyUnavail.has(iso(YEAR, idx, d))) availCount++;
+    MONTHS.forEach(({ idx, year }) => {
+      for (let d = 1; d <= daysIn(year, idx); d++)
+        if (!anyUnavail.has(iso(year, idx, d))) availCount++;
     });
 
     // Participants pills
@@ -892,11 +984,11 @@
       return;
     }
 
-    MONTHS.forEach(({ name, idx }) => {
+    MONTHS.forEach(({ name, idx, year }) => {
       const monthEl = document.createElement('div');
       monthEl.className = 'month';
       const h3 = document.createElement('h3');
-      h3.textContent = `${name} ${YEAR}`;
+      h3.textContent = `${name} ${year}`;
       monthEl.appendChild(h3);
       const grid = document.createElement('div');
       grid.className = 'cal-grid';
@@ -906,14 +998,14 @@
         hdr.textContent = label;
         grid.appendChild(hdr);
       });
-      for (let i = 0; i < firstDay(YEAR, idx); i++) {
+      for (let i = 0; i < firstDay(year, idx); i++) {
         grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-empty' }));
       }
-      for (let d = 1; d <= daysIn(YEAR, idx); d++) {
-        const dateStr = iso(YEAR, idx, d);
+      for (let d = 1; d <= daysIn(year, idx); d++) {
+        const dateStr = iso(year, idx, d);
         const cell = document.createElement('div');
         cell.className = 'day';
-        if (new Date(YEAR, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
+        if (new Date(year, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
         if (anyUnavail.has(dateStr)) {
           cell.classList.add('grp-unavail');
           const names = dateToNames[dateStr] || [];
@@ -932,23 +1024,25 @@
   }
 
   // Subscribe to real-time updates
-  if (db) {
-    document.getElementById('participants-info').innerHTML =
-      '<p class="no-dates">Connecting…</p>';
-    db.ref('divecalendar/rooms/' + ROOM_ID + '/users').on(
-      'value',
-      snapshot => { renderGroupCalendar(snapshot.val() || {}); },
-      error  => {
-        document.getElementById('participants-info').innerHTML =
-          `<p class="no-dates" style="color:#e11d48">
-            Firebase error: ${escapeHtml(error.message)}<br>
-            Make sure <code>.read: true</code> is on the <code>users</code> node in your security rules.
-           </p>`;
-      }
-    );
-  } else {
-    document.getElementById('participants-info').innerHTML =
-      '<p class="no-dates">Firebase not configured — submissions will not sync.</p>';
+  function subscribeToGroup() {
+    if (db) {
+      document.getElementById('participants-info').innerHTML =
+        '<p class="no-dates">Connecting…</p>';
+      db.ref('divecalendar/rooms/' + ROOM_ID + '/users').on(
+        'value',
+        snapshot => { renderGroupCalendar(snapshot.val() || {}); },
+        error  => {
+          document.getElementById('participants-info').innerHTML =
+            `<p class="no-dates" style="color:#e11d48">
+              Firebase error: ${escapeHtml(error.message)}<br>
+              Make sure <code>.read: true</code> is on the <code>users</code> node in your security rules.
+             </p>`;
+        }
+      );
+    } else {
+      document.getElementById('participants-info').innerHTML =
+        '<p class="no-dates">Firebase not configured — submissions will not sync.</p>';
+    }
   }
 
   // ── Tooltip ──────────────────────────────────────────────────
@@ -966,8 +1060,22 @@
 
   // ── Init ─────────────────────────────────────────────────────
   loadLocal();
-  buildCalendars();
   refreshRaw();
+
+  (async () => {
+    if (ROOM_ID && db) {
+      try {
+        const snap = await db.ref('divecalendar/rooms/' + ROOM_ID + '/config').once('value');
+        const cfg  = snap.val();
+        if (cfg && cfg.startMonth && cfg.endMonth) {
+          MONTHS = buildMonths(cfg.startMonth, cfg.endMonth);
+        }
+      } catch (e) { /* fall through to default */ }
+    }
+    if (!MONTHS.length) MONTHS = defaultMonths();
+    buildCalendars();
+    subscribeToGroup();
+  })();
 </script>
 
 </body>
