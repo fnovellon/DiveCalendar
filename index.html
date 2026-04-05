@@ -522,33 +522,83 @@
     }
     .room-overlay-box button:hover { background: var(--navy); }
 
-    /* Date range picker in overlay */
-    .date-range-row { margin-bottom: 0.75rem; text-align: left; }
-    .date-range-row > label {
-      display: block;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: var(--neutral-500);
-      margin-bottom: 0.4rem;
-    }
-    .date-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
-    .date-range-inputs input[type="month"] {
-      flex: 1;
-      padding: 0.5rem 0.5rem;
+    /* Overlay mode tabs */
+    .overlay-tabs {
+      display: flex;
       border: 1.5px solid var(--neutral-200);
       border-radius: var(--radius-sm);
-      font-size: 0.85rem;
-      outline: none;
-      color: var(--neutral-700);
-      transition: border-color 0.15s;
-      margin-bottom: 0;
-      text-align: center;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
     }
-    .date-range-inputs input[type="month"]:focus { border-color: var(--sky); }
-    .date-range-inputs span { color: var(--neutral-400); font-size: 0.82rem; flex-shrink: 0; }
-    .date-hint { font-size: 0.7rem; color: var(--neutral-400); margin-top: 0.35rem; display: block; }
+    .overlay-tab {
+      flex: 1; padding: 0.6rem;
+      background: none; border: none;
+      font-size: 0.88rem; font-weight: 600;
+      color: var(--neutral-500); cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      border-radius: 0; width: auto;
+    }
+    .overlay-tab.active { background: var(--blue); color: white; }
+    .overlay-tab:hover:not(.active) { background: var(--neutral-100); color: var(--navy); }
+
+    /* Date range row */
+    .date-range-row { margin-bottom: 0.85rem; text-align: left; }
+    .date-range-row > label {
+      display: block; font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--neutral-500); margin-bottom: 0.45rem;
+    }
+    .date-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .date-range-inputs > span { color: var(--neutral-400); font-size: 0.82rem; flex-shrink: 0; }
+
+    /* Custom month picker */
+    .month-picker { position: relative; flex: 1; }
+    .month-picker-btn {
+      width: 100%; padding: 0.6rem 0.5rem;
+      background: white; border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600;
+      color: var(--navy); cursor: pointer; text-align: center;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      margin-bottom: 0;
+    }
+    .month-picker-btn:hover { border-color: var(--sky); background: white; }
+    .month-picker-btn.open {
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+    }
+    .month-picker-panel {
+      position: absolute; top: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: white; border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius); box-shadow: var(--shadow-lg);
+      padding: 0.75rem; z-index: 3000; min-width: 200px; display: none;
+    }
+    .month-picker-panel.open { display: block; }
+    .mp-year-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.55rem;
+    }
+    .mp-year-nav span { font-weight: 700; font-size: 0.9rem; color: var(--navy); }
+    .mp-year-nav button {
+      background: none; border: none; cursor: pointer;
+      color: var(--neutral-500); font-size: 1.1rem;
+      padding: 0.15rem 0.4rem; border-radius: var(--radius-sm);
+      transition: background 0.12s, color 0.12s; width: auto;
+    }
+    .mp-year-nav button:hover { background: var(--neutral-100); color: var(--navy); }
+    .month-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem;
+    }
+    .month-pill {
+      padding: 0.38rem 0; border: 1.5px solid transparent;
+      border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; background: none; color: var(--neutral-600);
+      text-align: center; transition: background 0.12s, color 0.12s, border-color 0.12s;
+      width: auto;
+    }
+    .month-pill:hover { background: var(--sky-light); color: var(--sky); }
+    .month-pill.selected { background: var(--blue); color: white; border-color: var(--blue); }
+
     .overlay-error { color: var(--red); font-size: 0.78rem; min-height: 1rem; margin-bottom: 0.25rem; text-align: center; }
 
     /* ── Responsive ───────────────────────────────────────────── */
@@ -665,26 +715,49 @@
 <div id="room-overlay" style="display:none">
   <div class="room-overlay-box">
     <div class="overlay-icon">🤿</div>
-    <h2>Join a Room</h2>
-    <p>Enter a room name and pick the calendar period.</p>
+    <h2>Dive Calendar</h2>
+    <p id="overlay-subtitle"></p>
+    <div class="overlay-tabs">
+      <button class="overlay-tab" data-mode="create">Create room</button>
+      <button class="overlay-tab" data-mode="join">Join room</button>
+    </div>
     <input id="overlay-room-input" type="text" placeholder="e.g. dive-crew" maxlength="40" autocomplete="off">
-    <div class="date-range-row">
+    <div class="date-range-row" id="overlay-daterange">
       <label>Calendar period (max 3 months)</label>
       <div class="date-range-inputs">
-        <input type="month" id="overlay-start">
+        <div class="month-picker" id="picker-start">
+          <button class="month-picker-btn" type="button"></button>
+          <div class="month-picker-panel">
+            <div class="mp-year-nav">
+              <button type="button" class="mp-prev-year">‹</button>
+              <span class="mp-year-label"></span>
+              <button type="button" class="mp-next-year">›</button>
+            </div>
+            <div class="month-grid"></div>
+          </div>
+        </div>
         <span>→</span>
-        <input type="month" id="overlay-end">
+        <div class="month-picker" id="picker-end">
+          <button class="month-picker-btn" type="button"></button>
+          <div class="month-picker-panel">
+            <div class="mp-year-nav">
+              <button type="button" class="mp-prev-year">‹</button>
+              <span class="mp-year-label"></span>
+              <button type="button" class="mp-next-year">›</button>
+            </div>
+            <div class="month-grid"></div>
+          </div>
+        </div>
       </div>
-      <small class="date-hint">Only used when creating a new room — existing rooms keep their period.</small>
     </div>
     <div class="overlay-error" id="overlay-error"></div>
-    <button id="overlay-join-btn">Join Room</button>
+    <button id="overlay-join-btn"></button>
   </div>
 </div>
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -736,31 +809,119 @@
   }
 
   if (!ROOM_ID) {
-    // Set default date range values in overlay
     const now = new Date();
-    const padM = m => String(m).padStart(2, '0');
-    document.getElementById('overlay-start').value =
-      `${now.getFullYear()}-${padM(now.getMonth() + 1)}`;
-    const endD = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-    document.getElementById('overlay-end').value =
-      `${endD.getFullYear()}-${padM(endD.getMonth() + 1)}`;
+    const MNAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const MNAMES_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // ── Custom month picker ──────────────────────────────────────
+    function makeMonthPicker(el, initYear, initMonth) {
+      let year = initYear, month = initMonth; // month: 1-based
+      const btn       = el.querySelector('.month-picker-btn');
+      const panel     = el.querySelector('.month-picker-panel');
+      const yearLabel = el.querySelector('.mp-year-label');
+      const grid      = el.querySelector('.month-grid');
+
+      function render() {
+        btn.textContent = `${MNAMES_LONG[month - 1]} ${year}`;
+        yearLabel.textContent = year;
+        grid.innerHTML = '';
+        MNAMES_SHORT.forEach((name, i) => {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          pill.className = 'month-pill' + (i + 1 === month ? ' selected' : '');
+          pill.textContent = name;
+          pill.addEventListener('click', () => { month = i + 1; close(); render(); });
+          grid.appendChild(pill);
+        });
+      }
+
+      function open() {
+        // Close other open panels first
+        document.querySelectorAll('.month-picker-panel.open').forEach(p => {
+          if (p !== panel) {
+            p.classList.remove('open');
+            p.closest('.month-picker').querySelector('.month-picker-btn').classList.remove('open');
+          }
+        });
+        btn.classList.add('open');
+        panel.classList.add('open');
+      }
+      function close() {
+        btn.classList.remove('open');
+        panel.classList.remove('open');
+      }
+
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        panel.classList.contains('open') ? close() : open();
+      });
+      panel.addEventListener('click', e => e.stopPropagation());
+      el.querySelector('.mp-prev-year').addEventListener('click', e => { e.stopPropagation(); year--; render(); });
+      el.querySelector('.mp-next-year').addEventListener('click', e => { e.stopPropagation(); year++; render(); });
+
+      render();
+      return {
+        getVal:      () => ({ year, month }),
+        getMonthStr: () => `${year}-${String(month).padStart(2,'0')}`
+      };
+    }
+
+    // Close pickers on outside click
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.month-picker-panel.open').forEach(p => {
+        p.classList.remove('open');
+        p.closest('.month-picker').querySelector('.month-picker-btn').classList.remove('open');
+      });
+    });
+
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    const startPicker = makeMonthPicker(document.getElementById('picker-start'), now.getFullYear(), now.getMonth() + 1);
+    const endPicker   = makeMonthPicker(document.getElementById('picker-end'),   endDate.getFullYear(), endDate.getMonth() + 1);
+
+    // ── Mode toggle (Create / Join) ──────────────────────────────
+    let overlayMode = 'create';
+    const tabs         = document.querySelectorAll('.overlay-tab');
+    const dateRangeRow = document.getElementById('overlay-daterange');
+    const actionBtn    = document.getElementById('overlay-join-btn');
+    const subtitleEl   = document.getElementById('overlay-subtitle');
+
+    function setMode(mode) {
+      overlayMode = mode;
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+      dateRangeRow.style.display = mode === 'create' ? '' : 'none';
+      actionBtn.textContent = mode === 'create' ? 'Create Room' : 'Join Room';
+      subtitleEl.textContent = mode === 'create'
+        ? 'Set a name and pick the calendar period.'
+        : 'Enter the room name to join.';
+      document.getElementById('overlay-error').textContent = '';
+    }
+
+    tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+    setMode('create');
 
     document.getElementById('room-overlay').style.display = 'flex';
 
     function validateAndJoin() {
-      const name       = document.getElementById('overlay-room-input').value.trim();
-      const startMonth = document.getElementById('overlay-start').value;
-      const endMonth   = document.getElementById('overlay-end').value;
-      const errEl      = document.getElementById('overlay-error');
-      if (!name)       { errEl.textContent = 'Please enter a room name.'; return; }
-      if (!startMonth || !endMonth) { errEl.textContent = 'Please select a date range.'; return; }
-      const [sy, sm] = startMonth.split('-').map(Number);
-      const [ey, em] = endMonth.split('-').map(Number);
-      const diff = (ey - sy) * 12 + (em - sm);
-      if (diff < 0)  { errEl.textContent = 'End month must be after start month.'; return; }
-      if (diff > 2)  { errEl.textContent = 'Maximum 3 months.'; return; }
-      errEl.textContent = '';
-      joinRoom(name, startMonth, endMonth);
+      const name  = document.getElementById('overlay-room-input').value.trim();
+      const errEl = document.getElementById('overlay-error');
+      if (!name) { errEl.textContent = 'Please enter a room name.'; return; }
+
+      if (overlayMode === 'create') {
+        const { year: sy, month: sm } = startPicker.getVal();
+        const { year: ey, month: em } = endPicker.getVal();
+        const diff = (ey - sy) * 12 + (em - sm);
+        if (diff < 0) { errEl.textContent = 'End month must be after start month.'; return; }
+        if (diff > 2) { errEl.textContent = 'Maximum 3 months.'; return; }
+        errEl.textContent = '';
+        joinRoom(name, startPicker.getMonthStr(), endPicker.getMonthStr());
+      } else {
+        const room = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+        if (!room) { errEl.textContent = 'Invalid room name.'; return; }
+        errEl.textContent = '';
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', room);
+        window.location.href = url.toString();
+      }
     }
 
     document.getElementById('overlay-join-btn').addEventListener('click', validateAndJoin);
