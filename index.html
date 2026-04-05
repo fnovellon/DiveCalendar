@@ -457,7 +457,7 @@
     }
 
     /* ── Room overlay ─────────────────────────────────────────── */
-    #room-overlay {
+    #overlay-landing, #overlay-create {
       position: fixed; inset: 0;
       background: var(--neutral-100);
       display: flex;
@@ -722,7 +722,6 @@
 <div id="overlay-landing" style="display:none">
   <div class="room-overlay-box">
     <div class="overlay-icon">🤿</div>
-    <h2>Dive Calendar</h2>
     <input id="join-room-input" type="text" placeholder="Room name, e.g. dive-crew" maxlength="40" autocomplete="off">
     <div class="overlay-error" id="join-error"></div>
     <button id="btn-join-room">Join Room</button>
@@ -736,7 +735,6 @@
   <div class="room-overlay-box">
     <button class="overlay-back" id="btn-back-create">← Back</button>
     <div class="overlay-icon">🤿</div>
-    <h2>Create a Room</h2>
     <input id="create-room-input" type="text" placeholder="Room name, e.g. dive-crew" maxlength="40" autocomplete="off">
     <div class="date-range-row">
       <label>Calendar period (max 3 months)</label>
@@ -773,7 +771,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.4.2';
+  const VERSION = '1.4.3';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
