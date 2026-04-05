@@ -545,7 +545,7 @@
       background: none; color: var(--blue);
       border: 1.5px solid var(--neutral-200);
     }
-    .btn-overlay-ghost:hover { background: var(--neutral-100); color: var(--navy); border-color: var(--neutral-300); }
+    .room-overlay-box .btn-overlay-ghost:hover { background: var(--neutral-100); color: var(--navy); border-color: var(--neutral-300); }
 
     /* Date range row */
     .date-range-row { margin-bottom: 0.85rem; text-align: left; }
@@ -773,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.5.0';
+  const VERSION = '1.5.1';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -905,7 +905,7 @@
             return;
           }
         } catch (e) {
-          errEl.textContent = 'Could not check room: ' + e.message;
+          errEl.textContent = 'Unable to reach server. Please try again.';
           joinBtn.textContent = 'Join Room';
           joinBtn.disabled = false;
           return;
