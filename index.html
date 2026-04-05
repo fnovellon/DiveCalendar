@@ -773,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.4.1';
+  const VERSION = '1.4.2';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -932,6 +932,11 @@
   }
 
   document.getElementById('room-display').textContent = ROOM_ID || '—';
+
+  if (!ROOM_ID) {
+    document.querySelector('.room-bar').style.display = 'none';
+    document.querySelector('.container').style.display = 'none';
+  }
 
   document.getElementById('btn-exit-room').addEventListener('click', () => {
     const url = new URL(window.location.href);
