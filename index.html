@@ -722,6 +722,7 @@
 <div id="overlay-landing" style="display:none">
   <div class="room-overlay-box">
     <div class="overlay-icon">🤿</div>
+    <h2>Dive Calendar</h2>
     <input id="join-room-input" type="text" placeholder="Room name, e.g. dive-crew" maxlength="40" autocomplete="off">
     <div class="overlay-error" id="join-error"></div>
     <button id="btn-join-room">Join Room</button>
@@ -735,6 +736,7 @@
   <div class="room-overlay-box">
     <button class="overlay-back" id="btn-back-create">← Back</button>
     <div class="overlay-icon">🤿</div>
+    <h2>Dive Calendar</h2>
     <input id="create-room-input" type="text" placeholder="Room name, e.g. dive-crew" maxlength="40" autocomplete="off">
     <div class="date-range-row">
       <label>Calendar period (max 3 months)</label>
@@ -771,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.4.3';
+  const VERSION = '1.5.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -884,11 +886,32 @@
       window.location.hash = '#create';
     });
 
-    function doJoin() {
-      const name  = document.getElementById('join-room-input').value.trim();
-      const errEl = document.getElementById('join-error');
-      const room  = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+    async function doJoin() {
+      const name    = document.getElementById('join-room-input').value.trim();
+      const errEl   = document.getElementById('join-error');
+      const joinBtn = document.getElementById('btn-join-room');
+      const room    = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
       if (!room) { errEl.textContent = 'Please enter a room name.'; return; }
+
+      if (db) {
+        joinBtn.textContent = 'Checking…';
+        joinBtn.disabled = true;
+        try {
+          const snap = await db.ref('divecalendar/rooms/' + room).once('value');
+          if (!snap.exists()) {
+            errEl.textContent = 'Room not found. Create it first.';
+            joinBtn.textContent = 'Join Room';
+            joinBtn.disabled = false;
+            return;
+          }
+        } catch (e) {
+          errEl.textContent = 'Could not check room: ' + e.message;
+          joinBtn.textContent = 'Join Room';
+          joinBtn.disabled = false;
+          return;
+        }
+      }
+
       errEl.textContent = '';
       const url = new URL(window.location.href);
       url.searchParams.set('room', room);
