@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dive Calendar</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤿</text></svg>">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    /* ── Tokens ───────────────────────────────────────────────── */
+    :root {
+      --navy:        #0d3b5e;
+      --navy-dark:   #082d47;
+      --blue:        #1565a7;
+      --sky:         #0891b2;
+      --sky-light:   #e0f2fe;
+      --sky-mid:     #bae6fd;
+      --green:       #059669;
+      --green-light: #d1fae5;
+      --green-dark:  #065f46;
+      --green-we:    #0d9488;
+      --green-we-bg: #99f6e4;
+      --red:         #e11d48;
+      --red-light:   #ffe4e6;
+      --neutral-50:  #f8fafc;
+      --neutral-100: #f1f5f9;
+      --neutral-200: #e2e8f0;
+      --neutral-300: #cbd5e1;
+      --neutral-400: #94a3b8;
+      --neutral-500: #64748b;
+      --neutral-600: #475569;
+      --neutral-700: #334155;
+      --neutral-900: #0f172a;
+      --white:       #ffffff;
+      --radius-sm:   6px;
+      --radius:      12px;
+      --radius-lg:   18px;
+      --shadow-sm:   0 1px 2px rgba(0,0,0,.06);
+      --shadow:      0 1px 3px rgba(0,0,0,.07), 0 6px 20px rgba(0,0,0,.05);
+      --shadow-lg:   0 4px 6px rgba(0,0,0,.07), 0 20px 40px rgba(0,0,0,.1);
+    }
+
+    /* ── Reset ────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--neutral-100);
+      color: var(--neutral-700);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(160deg, #071e38 0%, var(--navy) 40%, #0e6d8e 75%, #0891b2 100%);
+      color: white;
+      padding: 2.75rem 1.5rem 3.25rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Underwater light rays */
+    header::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      left: 20%;
+      width: 65%;
+      height: 180%;
+      background: radial-gradient(ellipse at 50% 30%, rgba(8,145,178,0.22) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    /* Wave transition into room bar */
+    .header-wave {
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 40px;
+      pointer-events: none;
+    }
+
+    /* Bubbles */
+    .bubbles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .bbl {
+      position: absolute;
+      bottom: 10px;
+      left: var(--x);
+      width: var(--s);
+      height: var(--s);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.25);
+      animation: bbl-rise var(--d) ease-in infinite var(--delay);
+    }
+    @keyframes bbl-rise {
+      0%   { transform: translateY(0) scale(1); opacity: 0; }
+      12%  { opacity: 0.75; }
+      88%  { opacity: 0.25; }
+      100% { transform: translateY(-200px) scale(1.15); opacity: 0; }
+    }
+    header h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.35rem;
+    }
+    header h1 span {
+      font-size: 0.85rem;
+      font-weight: 400;
+      opacity: 0.5;
+      letter-spacing: 0;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    header p {
+      font-size: 0.78rem;
+      opacity: 0.5;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Room bar ─────────────────────────────────────────────── */
+    .room-bar {
+      background: var(--navy-dark);
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .room-bar .room-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.4);
+    }
+    .room-bar strong {
+      color: white;
+      font-size: 0.88rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.1);
+      padding: 0.15rem 0.65rem;
+      border-radius: 99px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .room-bar .exit-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.65);
+      padding: 0.25rem 0.8rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .room-bar .exit-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+
+    /* ── Setup banner ─────────────────────────────────────────── */
+    .setup-banner {
+      background: #fffbeb;
+      border-bottom: 2px solid #fbbf24;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.85rem;
+      color: #78350f;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .setup-banner a { color: var(--blue); font-weight: 600; }
+    .setup-banner code { background: #fef3c7; padding: 1px 5px; border-radius: 4px; font-size: 0.8rem; }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    .container { max-width: 1120px; margin: 0 auto; padding: 2rem 1.25rem; }
+
+    /* ── Section cards ────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--neutral-200);
+      padding: 2rem;
+      margin-bottom: 1.75rem;
+      box-shadow: var(--shadow);
+    }
+    .card-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+    .card-step {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .card-subtitle {
+      font-size: 0.83rem;
+      color: var(--neutral-400);
+      margin-left: auto;
+    }
+
+    /* ── Name input ───────────────────────────────────────────── */
+    .name-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .name-row label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--neutral-600);
+      white-space: nowrap;
+    }
+    .name-row input {
+      padding: 0.5rem 0.85rem;
+      border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      outline: none;
+      width: 200px;
+      color: var(--neutral-700);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: var(--neutral-50);
+    }
+    .name-row input:focus {
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+      background: white;
+    }
+
+    /* ── Legend ───────────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      color: var(--neutral-500);
+      font-weight: 500;
+    }
+    .legend-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--neutral-200);
+      background: var(--white);
+    }
+    .legend-dot.unavail    { background: var(--red); border-color: var(--red); }
+    .legend-dot.grp-avail  { background: var(--green); border-color: var(--green); }
+    .legend-dot.grp-unavail{ background: var(--neutral-200); border-color: var(--neutral-200); }
+
+    /* ── Calendars wrap ───────────────────────────────────────── */
+    #calendars, #group-calendars {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Month card ───────────────────────────────────────────── */
+    .month {
+      flex: 1;
+      min-width: 240px;
+      background: var(--neutral-50);
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius);
+      padding: 1rem 0.85rem 0.85rem;
+    }
+    .month h3 {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--neutral-500);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Calendar grid ────────────────────────────────────────── */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .day-hdr {
+      text-align: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--neutral-400);
+      padding: 3px 0 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .day-hdr.we { color: var(--sky); }
+
+    .day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--neutral-600);
+      transition: background 0.1s, color 0.1s, transform 0.1s;
+      user-select: none;
+      position: relative;
+    }
+    .day:hover { background: var(--sky-light); color: var(--sky); }
+    .day.weekend { color: var(--sky); font-weight: 600; }
+    .day.unavail {
+      background: var(--red);
+      color: white;
+      font-weight: 700;
+      border-radius: 50%;
+    }
+    .day.unavail:hover { background: #be123c; transform: scale(0.95); }
+    .day-empty { aspect-ratio: 1; }
+
+    /* Group calendar states */
+    .day.grp-avail {
+      background: var(--green);
+      color: white;
+      font-weight: 700;
+      border-radius: 50%;
+    }
+    .day.grp-avail:hover { background: #047857; }
+    .day.grp-avail.weekend {
+      background: var(--green-we);
+      box-shadow: 0 0 0 2px var(--green-we-bg);
+    }
+    .day.grp-unavail {
+      color: var(--neutral-300);
+      cursor: default;
+    }
+    .day.grp-unavail:hover { background: transparent; color: var(--neutral-300); }
+    .day.grp-unavail.weekend { color: var(--neutral-400); background: #fef9ec; border-radius: var(--radius-sm); }
+
+    /* ── Actions row ──────────────────────────────────────────── */
+    .actions {
+      margin-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: white;
+      border: none;
+      padding: 0.55rem 1.4rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-primary:hover { background: var(--navy); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--red);
+      border: 1.5px solid var(--red);
+      padding: 0.5rem 1.2rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { background: var(--red-light); }
+    .feedback { font-size: 0.82rem; font-weight: 500; }
+
+    /* ── Raw output ───────────────────────────────────────────── */
+    .raw-box {
+      margin-top: 1rem;
+      padding: 0.65rem 0.9rem;
+      background: var(--neutral-50);
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-family: 'SF Mono', 'Fira Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--neutral-400);
+      word-break: break-all;
+      min-height: 2.25rem;
+    }
+
+    /* ── Participants ─────────────────────────────────────────── */
+    .participants-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .participant-pill {
+      background: var(--sky-light);
+      color: var(--sky);
+      border: 1.5px solid var(--sky-mid);
+      border-radius: 99px;
+      padding: 0.2rem 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .participant-pill.is-me {
+      background: var(--green-light);
+      color: var(--green-dark);
+      border-color: #6ee7b7;
+    }
+
+    .result-info {
+      font-size: 0.82rem;
+      color: var(--neutral-500);
+      margin-bottom: 1rem;
+    }
+    .result-info strong { color: var(--green-dark); }
+    .no-dates {
+      color: var(--neutral-400);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    /* ── Tooltip ──────────────────────────────────────────────── */
+    #tooltip {
+      position: fixed;
+      display: none;
+      background: var(--neutral-900);
+      color: white;
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 500;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: var(--shadow-lg);
+      max-width: 220px;
+      line-height: 1.4;
+    }
+
+    /* ── Room overlay ─────────────────────────────────────────── */
+    #room-overlay {
+      position: fixed; inset: 0;
+      background: var(--neutral-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 1.5rem;
+    }
+    .room-overlay-box {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--neutral-200);
+      text-align: center;
+    }
+    .room-overlay-box .overlay-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    .room-overlay-box h2 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.02em;
+    }
+    .room-overlay-box p {
+      color: var(--neutral-400);
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .room-overlay-box input {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      text-align: center;
+      outline: none;
+      margin-bottom: 0.75rem;
+      color: var(--neutral-700);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .room-overlay-box input:focus {
+      border-color: var(--sky);
+      box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+    }
+    .room-overlay-box button {
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--blue);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .room-overlay-box button:hover { background: var(--navy); }
+
+    /* Date range picker in overlay */
+    .date-range-row { margin-bottom: 0.75rem; text-align: left; }
+    .date-range-row > label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--neutral-500);
+      margin-bottom: 0.4rem;
+    }
+    .date-range-inputs { display: flex; align-items: center; gap: 0.5rem; }
+    .date-range-inputs input[type="month"] {
+      flex: 1;
+      padding: 0.5rem 0.5rem;
+      border: 1.5px solid var(--neutral-200);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      outline: none;
+      color: var(--neutral-700);
+      transition: border-color 0.15s;
+      margin-bottom: 0;
+      text-align: center;
+    }
+    .date-range-inputs input[type="month"]:focus { border-color: var(--sky); }
+    .date-range-inputs span { color: var(--neutral-400); font-size: 0.82rem; flex-shrink: 0; }
+    .date-hint { font-size: 0.7rem; color: var(--neutral-400); margin-top: 0.35rem; display: block; }
+    .overlay-error { color: var(--red); font-size: 0.78rem; min-height: 1rem; margin-bottom: 0.25rem; text-align: center; }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 680px) {
+      header { padding: 2rem 1rem 2.75rem; }
+      header h1 { font-size: 1.5rem; }
+
+      .container { padding: 1rem 0.75rem; }
+
+      .card { padding: 1.25rem 1rem; }
+      .card-subtitle { display: none; }
+
+      /* Calendars stack, cells fill the width */
+      #calendars, #group-calendars { display: block; }
+      .month { width: 100%; min-width: 0; padding: 0.85rem 0.5rem; margin-bottom: 0.75rem; }
+      .month:last-child { margin-bottom: 0; }
+      .cal-grid { gap: 1px; }
+      .day { font-size: 0.85rem; }
+
+      /* Name row stacks */
+      .name-row { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+      .name-row input { width: 100%; }
+
+      /* Buttons full-width and easy to tap */
+      .actions { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+      .btn-primary, .btn-ghost {
+        text-align: center;
+        padding: 0.75rem;
+        font-size: 0.95rem;
+      }
+      .feedback { text-align: center; }
+
+      /* Legend tighter */
+      .legend { gap: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="bubbles" aria-hidden="true">
+    <span class="bbl" style="--x:4%;  --s:6px; --d:3.5s; --delay:0s"></span>
+    <span class="bbl" style="--x:11%; --s:10px;--d:5s;   --delay:0.8s"></span>
+    <span class="bbl" style="--x:20%; --s:7px; --d:4.2s; --delay:2s"></span>
+    <span class="bbl" style="--x:32%; --s:13px;--d:6s;   --delay:0.3s"></span>
+    <span class="bbl" style="--x:46%; --s:5px; --d:3.8s; --delay:1.6s"></span>
+    <span class="bbl" style="--x:57%; --s:8px; --d:4.8s; --delay:0.5s"></span>
+    <span class="bbl" style="--x:68%; --s:11px;--d:5.5s; --delay:2.3s"></span>
+    <span class="bbl" style="--x:78%; --s:6px; --d:4s;   --delay:1s"></span>
+    <span class="bbl" style="--x:88%; --s:9px; --d:3.8s; --delay:0.2s"></span>
+    <span class="bbl" style="--x:95%; --s:7px; --d:5.2s; --delay:1.8s"></span>
+  </div>
+  <h1>🤿 Dive Calendar <span id="app-version"></span></h1>
+  <p>Powered by Claude</p>
+  <svg class="header-wave" viewBox="0 0 1440 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0,20 C180,40 360,0 540,20 C720,40 900,0 1080,20 C1260,40 1390,8 1440,20 L1440,40 L0,40 Z" fill="#082d47"/>
+  </svg>
+</header>
+
+<div class="room-bar">
+  <span class="room-label">Room</span>
+  <strong id="room-display"></strong>
+  <button id="btn-exit-room" class="exit-btn">Exit room</button>
+</div>
+
+<div id="setup-banner" class="setup-banner" style="display:none">
+  <strong>Setup required:</strong> Replace <code>FIREBASE_CONFIG</code> in <code>index.html</code> with your Firebase project credentials.
+  See the <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a>.
+</div>
+
+<div class="container">
+
+  <!-- ── Section 1 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-step">🤿 My availability</span>
+      <span class="card-subtitle">Click days you are <strong>not</strong> available</span>
+    </div>
+
+    <div class="name-row">
+      <label for="user-name">Your name</label>
+      <input id="user-name" type="text" placeholder="e.g. Alice" autocomplete="off" maxlength="40">
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot"></div> Available</div>
+      <div class="legend-item"><div class="legend-dot unavail"></div> Not available</div>
+    </div>
+
+    <div id="calendars"></div>
+
+    <div class="actions">
+      <button id="btn-submit" class="btn-primary">Submit to group</button>
+      <button id="btn-clear" class="btn-ghost">Clear</button>
+      <span class="feedback" id="action-fb"></span>
+    </div>
+    <div class="raw-box" id="raw-out">No dates selected yet.</div>
+  </div>
+
+  <!-- ── Section 2 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-step">🌊 Group availability</span>
+      <span class="card-subtitle" id="group-subtitle">Updates in real-time</span>
+    </div>
+    <div id="participants-info"></div>
+    <div id="group-calendars"></div>
+  </div>
+
+</div>
+
+<div id="tooltip"></div>
+
+<div id="room-overlay" style="display:none">
+  <div class="room-overlay-box">
+    <div class="overlay-icon">🤿</div>
+    <h2>Join a Room</h2>
+    <p>Enter a room name and pick the calendar period.</p>
+    <input id="overlay-room-input" type="text" placeholder="e.g. dive-crew" maxlength="40" autocomplete="off">
+    <div class="date-range-row">
+      <label>Calendar period (max 3 months)</label>
+      <div class="date-range-inputs">
+        <input type="month" id="overlay-start">
+        <span>→</span>
+        <input type="month" id="overlay-end">
+      </div>
+      <small class="date-hint">Only used when creating a new room — existing rooms keep their period.</small>
+    </div>
+    <div class="overlay-error" id="overlay-error"></div>
+    <button id="overlay-join-btn">Join Room</button>
+  </div>
+</div>
+
+<script>
+  // ── Version ──────────────────────────────────────────────────
+  const VERSION = '1.2.0';
+  document.getElementById('app-version').textContent = 'v' + VERSION;
+
+  // ── Room ─────────────────────────────────────────────────────
+  const ROOM_ID = (new URLSearchParams(window.location.search).get('room') || '')
+    .toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+
+  // ── Month helpers ────────────────────────────────────────────
+  function buildMonths(startMonth, endMonth) {
+    const [sy, sm] = startMonth.split('-').map(Number);
+    const [ey, em] = endMonth.split('-').map(Number);
+    const months = [];
+    let y = sy, m = sm;
+    while ((y < ey || (y === ey && m <= em)) && months.length < 3) {
+      months.push({
+        name: new Date(y, m - 1, 1).toLocaleString('default', { month: 'long' }),
+        idx: m - 1,
+        year: y
+      });
+      if (++m > 12) { m = 1; y++; }
+    }
+    return months;
+  }
+
+  function defaultMonths() {
+    const now = new Date();
+    const sy = now.getFullYear(), sm = now.getMonth() + 1;
+    const endDate = new Date(sy, sm + 1, 1); // +2 months
+    const ey = endDate.getFullYear(), em = endDate.getMonth() + 1;
+    return buildMonths(
+      `${sy}-${String(sm).padStart(2,'0')}`,
+      `${ey}-${String(em).padStart(2,'0')}`
+    );
+  }
+
+  let MONTHS = [];
+
+  // ── Room join / overlay ──────────────────────────────────────
+  async function joinRoom(name, startMonth, endMonth) {
+    const room = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+    if (!room) return;
+    if (db) {
+      const configRef = db.ref('divecalendar/rooms/' + room + '/config');
+      const snap = await configRef.once('value');
+      if (!snap.val()) await configRef.set({ startMonth, endMonth });
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('room', room);
+    window.location.href = url.toString();
+  }
+
+  if (!ROOM_ID) {
+    // Set default date range values in overlay
+    const now = new Date();
+    const padM = m => String(m).padStart(2, '0');
+    document.getElementById('overlay-start').value =
+      `${now.getFullYear()}-${padM(now.getMonth() + 1)}`;
+    const endD = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    document.getElementById('overlay-end').value =
+      `${endD.getFullYear()}-${padM(endD.getMonth() + 1)}`;
+
+    document.getElementById('room-overlay').style.display = 'flex';
+
+    function validateAndJoin() {
+      const name       = document.getElementById('overlay-room-input').value.trim();
+      const startMonth = document.getElementById('overlay-start').value;
+      const endMonth   = document.getElementById('overlay-end').value;
+      const errEl      = document.getElementById('overlay-error');
+      if (!name)       { errEl.textContent = 'Please enter a room name.'; return; }
+      if (!startMonth || !endMonth) { errEl.textContent = 'Please select a date range.'; return; }
+      const [sy, sm] = startMonth.split('-').map(Number);
+      const [ey, em] = endMonth.split('-').map(Number);
+      const diff = (ey - sy) * 12 + (em - sm);
+      if (diff < 0)  { errEl.textContent = 'End month must be after start month.'; return; }
+      if (diff > 2)  { errEl.textContent = 'Maximum 3 months.'; return; }
+      errEl.textContent = '';
+      joinRoom(name, startMonth, endMonth);
+    }
+
+    document.getElementById('overlay-join-btn').addEventListener('click', validateAndJoin);
+    document.getElementById('overlay-room-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') validateAndJoin();
+    });
+  }
+
+  document.getElementById('room-display').textContent = ROOM_ID || '—';
+
+  document.getElementById('btn-exit-room').addEventListener('click', () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('room');
+    window.location.href = url.toString();
+  });
+
+  // ── Firebase config ──────────────────────────────────────────
+  // To enable real-time sync:
+  // 1. Go to https://console.firebase.google.com/ and create a project
+  // 2. Add a Web app, copy the config object here
+  // 3. Go to Realtime Database → Create database (start in test mode)
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyD6OY-jmRqTqb4bpoC4bQ6R34DKFgY1Xhg",
+    authDomain: "divecalendar.firebaseapp.com",
+    databaseURL: "https://divecalendar-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "divecalendar",
+    storageBucket: "divecalendar.firebasestorage.app",
+    messagingSenderId: "837481530568",
+    appId: "1:837481530568:web:005be22ecee8cea57051fd"
+  };
+
+  const DB_READY = !FIREBASE_CONFIG.apiKey.startsWith('REPLACE') && !!FIREBASE_CONFIG.databaseURL;
+  let db = null;
+
+  function showBanner(msg) {
+    document.getElementById('setup-banner').style.display = 'flex';
+    document.getElementById('setup-banner').querySelector('strong').textContent = msg;
+    document.getElementById('group-subtitle').textContent =
+      'Firebase not available — check the banner above.';
+    document.getElementById('btn-submit').disabled = true;
+  }
+
+  if (DB_READY) {
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db = firebase.database();
+    } catch (e) {
+      showBanner('Firebase init failed: ' + e.message);
+    }
+  } else {
+    showBanner('Setup required: fill in FIREBASE_CONFIG in index.html');
+  }
+
+
+  // ── User identity ────────────────────────────────────────────
+  function getUserId() {
+    let id = localStorage.getItem('divecal_uid');
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem('divecal_uid', id);
+    }
+    return id;
+  }
+  const MY_ID = getUserId();
+
+  // ── Local state ──────────────────────────────────────────────
+  const offDates = new Set();
+
+  function saveLocal() {
+    localStorage.setItem('divecal_dates', [...offDates].sort().join(','));
+    localStorage.setItem('divecal_name',  document.getElementById('user-name').value);
+  }
+  function loadLocal() {
+    const name = localStorage.getItem('divecal_name');
+    if (name) document.getElementById('user-name').value = name;
+    const raw = localStorage.getItem('divecal_dates');
+    if (raw) raw.split(',').forEach(d => { if (d) offDates.add(d); });
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function daysIn(year, m)  { return new Date(year, m + 1, 0).getDate(); }
+  function firstDay(year, m){ return (new Date(year, m, 1).getDay() + 6) % 7; }
+  function iso(y, m, d) {
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function feedback(text, color = '#059669') {
+    const el = document.getElementById('action-fb');
+    el.style.color = color;
+    el.textContent = text;
+    setTimeout(() => el.textContent = '', 3000);
+  }
+
+  // ── Build personal calendars ─────────────────────────────────
+  function buildCalendars() {
+    const wrap = document.getElementById('calendars');
+    wrap.innerHTML = '';
+    MONTHS.forEach(({ name, idx, year }) => {
+      const monthEl = document.createElement('div');
+      monthEl.className = 'month';
+      const h3 = document.createElement('h3');
+      h3.textContent = `${name} ${year}`;
+      monthEl.appendChild(h3);
+      const grid = document.createElement('div');
+      grid.className = 'cal-grid';
+      ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach((label, i) => {
+        const hdr = document.createElement('div');
+        hdr.className = 'day-hdr' + (i === 5 || i === 6 ? ' we' : '');
+        hdr.textContent = label;
+        grid.appendChild(hdr);
+      });
+      for (let i = 0; i < firstDay(year, idx); i++) {
+        grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-empty' }));
+      }
+      for (let d = 1; d <= daysIn(year, idx); d++) {
+        const dateStr = iso(year, idx, d);
+        const cell = document.createElement('div');
+        cell.className = 'day';
+        if (new Date(year, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
+        if (offDates.has(dateStr)) cell.classList.add('unavail');
+        cell.textContent = d;
+        cell.addEventListener('click', () => {
+          offDates.has(dateStr) ? offDates.delete(dateStr) : offDates.add(dateStr);
+          cell.classList.toggle('unavail');
+          refreshRaw();
+          saveLocal();
+        });
+        grid.appendChild(cell);
+      }
+      monthEl.appendChild(grid);
+      wrap.appendChild(monthEl);
+    });
+  }
+
+  function refreshRaw() {
+    const sorted = [...offDates].sort();
+    document.getElementById('raw-out').textContent =
+      sorted.length ? sorted.join(',') : 'No dates selected yet.';
+  }
+
+  // ── Submit to Firebase ───────────────────────────────────────
+  document.getElementById('btn-submit').addEventListener('click', () => {
+    const name = document.getElementById('user-name').value.trim();
+    if (!name) { feedback('Please enter your name first.', '#e11d48'); return; }
+    saveLocal();
+    const dates = [...offDates].sort().join(',');
+    db.ref('divecalendar/rooms/' + ROOM_ID + '/users/' + MY_ID).set({ name, dates, updatedAt: Date.now() })
+      .then(() => feedback('Submitted!'))
+      .catch(() => feedback('Error saving — check Firebase config.', '#e11d48'));
+  });
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+              .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ── Clear ────────────────────────────────────────────────────
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    offDates.clear();
+    document.querySelectorAll('#calendars .day.unavail').forEach(c => c.classList.remove('unavail'));
+    refreshRaw();
+    saveLocal();
+    if (db) {
+      db.ref('divecalendar/rooms/' + ROOM_ID + '/users/' + MY_ID).remove()
+        .then(() => feedback('Cleared and removed from group.', '#64748b'))
+        .catch(() => feedback('Cleared locally, but DB remove failed.', '#e11d48'));
+    }
+  });
+
+  // ── Group calendar (real-time) ───────────────────────────────
+  function renderGroupCalendar(data) {
+    const infoEl   = document.getElementById('participants-info');
+    const calWrap  = document.getElementById('group-calendars');
+    calWrap.innerHTML = '';
+
+    const entries = Object.entries(data).filter(([, v]) => v && v.name);
+    if (!entries.length) {
+      infoEl.innerHTML = '<p class="no-dates">No submissions yet.</p>';
+      return;
+    }
+
+    // Aggregate unavailable dates + build date→names map for tooltips
+    const anyUnavail = new Set();
+    const dateToNames = {};
+    entries.forEach(([, { name, dates }]) => {
+      (dates || '').split(',').forEach(d => {
+        const date = d.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          anyUnavail.add(date);
+          (dateToNames[date] = dateToNames[date] || []).push(name);
+        }
+      });
+    });
+
+    // Count available dates
+    let availCount = 0;
+    MONTHS.forEach(({ idx, year }) => {
+      for (let d = 1; d <= daysIn(year, idx); d++)
+        if (!anyUnavail.has(iso(year, idx, d))) availCount++;
+    });
+
+    // Participants pills
+    const pills = entries.map(([uid, { name }]) =>
+      `<span class="participant-pill${uid === MY_ID ? ' is-me' : ''}">${escapeHtml(name)}${uid === MY_ID ? ' (me)' : ''}</span>`
+    ).join('');
+
+    infoEl.innerHTML = `
+      <div class="participants-row">${pills}</div>
+      <p class="result-info">
+        ${entries.length} participant${entries.length > 1 ? 's' : ''}
+        — <strong>${availCount}</strong>
+        date${availCount !== 1 ? 's' : ''} where everyone is available
+      </p>
+      <div class="legend" style="margin-bottom:1.25rem">
+        <div class="legend-item"><div class="legend-dot grp-avail"></div> Everyone available</div>
+        <div class="legend-item"><div class="legend-dot grp-unavail"></div> Someone unavailable</div>
+      </div>`;
+
+    if (!availCount) {
+      calWrap.innerHTML = '<p class="no-dates">No dates where everyone is available.</p>';
+      return;
+    }
+
+    MONTHS.forEach(({ name, idx, year }) => {
+      const monthEl = document.createElement('div');
+      monthEl.className = 'month';
+      const h3 = document.createElement('h3');
+      h3.textContent = `${name} ${year}`;
+      monthEl.appendChild(h3);
+      const grid = document.createElement('div');
+      grid.className = 'cal-grid';
+      ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach((label, i) => {
+        const hdr = document.createElement('div');
+        hdr.className = 'day-hdr' + (i === 5 || i === 6 ? ' we' : '');
+        hdr.textContent = label;
+        grid.appendChild(hdr);
+      });
+      for (let i = 0; i < firstDay(year, idx); i++) {
+        grid.appendChild(Object.assign(document.createElement('div'), { className: 'day-empty' }));
+      }
+      for (let d = 1; d <= daysIn(year, idx); d++) {
+        const dateStr = iso(year, idx, d);
+        const cell = document.createElement('div');
+        cell.className = 'day';
+        if (new Date(year, idx, d).getDay() % 6 === 0) cell.classList.add('weekend');
+        if (anyUnavail.has(dateStr)) {
+          cell.classList.add('grp-unavail');
+          const names = dateToNames[dateStr] || [];
+          cell.addEventListener('mouseenter', e => showTooltip(names, e));
+          cell.addEventListener('mousemove',  moveTooltip);
+          cell.addEventListener('mouseleave', hideTooltip);
+        } else {
+          cell.classList.add('grp-avail');
+        }
+        cell.textContent = d;
+        grid.appendChild(cell);
+      }
+      monthEl.appendChild(grid);
+      calWrap.appendChild(monthEl);
+    });
+  }
+
+  // Subscribe to real-time updates
+  function subscribeToGroup() {
+    if (db) {
+      document.getElementById('participants-info').innerHTML =
+        '<p class="no-dates">Connecting…</p>';
+      db.ref('divecalendar/rooms/' + ROOM_ID + '/users').on(
+        'value',
+        snapshot => { renderGroupCalendar(snapshot.val() || {}); },
+        error  => {
+          document.getElementById('participants-info').innerHTML =
+            `<p class="no-dates" style="color:#e11d48">
+              Firebase error: ${escapeHtml(error.message)}<br>
+              Make sure <code>.read: true</code> is on the <code>users</code> node in your security rules.
+             </p>`;
+        }
+      );
+    } else {
+      document.getElementById('participants-info').innerHTML =
+        '<p class="no-dates">Firebase not configured — submissions will not sync.</p>';
+    }
+  }
+
+  // ── Tooltip ──────────────────────────────────────────────────
+  const tooltipEl = document.getElementById('tooltip');
+  function showTooltip(names, e) {
+    tooltipEl.textContent = names.join(', ') + ' unavailable';
+    tooltipEl.style.display = 'block';
+    moveTooltip(e);
+  }
+  function moveTooltip(e) {
+    tooltipEl.style.left = (e.clientX + 14) + 'px';
+    tooltipEl.style.top  = (e.clientY - 38) + 'px';
+  }
+  function hideTooltip() { tooltipEl.style.display = 'none'; }
+
+  // ── Init ─────────────────────────────────────────────────────
+  loadLocal();
+  refreshRaw();
+
+  (async () => {
+    if (ROOM_ID && db) {
+      try {
+        const snap = await db.ref('divecalendar/rooms/' + ROOM_ID + '/config').once('value');
+        const cfg  = snap.val();
+        if (cfg && cfg.startMonth && cfg.endMonth) {
+          MONTHS = buildMonths(cfg.startMonth, cfg.endMonth);
+        }
+      } catch (e) { /* fall through to default */ }
+    }
+    if (!MONTHS.length) MONTHS = defaultMonths();
+    buildCalendars();
+    subscribeToGroup();
+  })();
+</script>
+
+</body>
+</html>
