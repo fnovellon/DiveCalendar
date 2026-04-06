@@ -773,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.5.1';
+  const VERSION = '1.5.2';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -814,10 +814,12 @@
   async function joinRoom(name, startMonth, endMonth) {
     const room = name.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
     if (!room) return;
-    if (db) {
-      const configRef = db.ref('divecalendar/rooms/' + room + '/config');
-      const snap = await configRef.once('value');
-      if (!snap.val()) await configRef.set({ startMonth, endMonth });
+    if (db && startMonth && endMonth) {
+      try {
+        const configRef = db.ref('divecalendar/rooms/' + room + '/config');
+        const snap = await configRef.once('value');
+        if (!snap.val()) await configRef.set({ startMonth, endMonth });
+      } catch (e) { /* config write failed — navigate anyway, room will use default months */ }
     }
     const url = new URL(window.location.href);
     url.searchParams.set('room', room);
