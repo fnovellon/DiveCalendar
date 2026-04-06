@@ -773,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.5.2';
+  const VERSION = '1.6.0';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -827,9 +827,7 @@
     window.location.href = url.toString();
   }
 
-  const IS_CREATE = window.location.hash === '#create';
-
-  // ── Custom month picker (used on create page) ────────────────
+  // ── Custom month picker ──────────────────────────────────────
   const MNAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const MNAMES_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -864,7 +862,6 @@
       panel.classList.add('open');
     }
     function close() { btn.classList.remove('open'); panel.classList.remove('open'); }
-
     btn.addEventListener('click', e => { e.stopPropagation(); panel.classList.contains('open') ? close() : open(); });
     panel.addEventListener('click', e => e.stopPropagation());
     el.querySelector('.mp-prev-year').addEventListener('click', e => { e.stopPropagation(); year--; render(); });
@@ -880,10 +877,24 @@
     });
   });
 
-  if (!ROOM_ID && !IS_CREATE) {
-    // ── Landing: join or go to create ───────────────────────────
-    document.getElementById('overlay-landing').style.display = 'flex';
+  // ── Overlay routing ──────────────────────────────────────────
+  if (!ROOM_ID) {
+    // Initialize pickers once (always present in DOM)
+    const now     = new Date();
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+    const startPicker = makeMonthPicker(document.getElementById('picker-start'), now.getFullYear(), now.getMonth() + 1);
+    const endPicker   = makeMonthPicker(document.getElementById('picker-end'),   endDate.getFullYear(), endDate.getMonth() + 1);
 
+    // Show the right overlay based on current hash
+    function applyView() {
+      const isCreate = window.location.hash === '#create';
+      document.getElementById('overlay-landing').style.display = isCreate ? 'none' : 'flex';
+      document.getElementById('overlay-create').style.display  = isCreate ? 'flex' : 'none';
+    }
+    window.addEventListener('hashchange', applyView);
+    applyView();
+
+    // Landing handlers
     document.getElementById('btn-go-create').addEventListener('click', () => {
       window.location.hash = '#create';
     });
@@ -917,22 +928,14 @@
       errEl.textContent = '';
       const url = new URL(window.location.href);
       url.searchParams.set('room', room);
+      url.hash = '';
       window.location.href = url.toString();
     }
 
     document.getElementById('btn-join-room').addEventListener('click', doJoin);
     document.getElementById('join-room-input').addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
-  }
 
-  if (IS_CREATE) {
-    // ── Create page ──────────────────────────────────────────────
-    document.getElementById('overlay-create').style.display = 'flex';
-
-    const now     = new Date();
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-    const startPicker = makeMonthPicker(document.getElementById('picker-start'), now.getFullYear(), now.getMonth() + 1);
-    const endPicker   = makeMonthPicker(document.getElementById('picker-end'),   endDate.getFullYear(), endDate.getMonth() + 1);
-
+    // Create handlers
     document.getElementById('btn-back-create').addEventListener('click', () => {
       window.location.hash = '';
     });
