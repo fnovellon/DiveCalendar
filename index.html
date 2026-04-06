@@ -773,7 +773,7 @@
 
 <script>
   // ── Version ──────────────────────────────────────────────────
-  const VERSION = '1.6.0';
+  const VERSION = '1.6.1';
   document.getElementById('app-version').textContent = 'v' + VERSION;
 
   // ── Room ─────────────────────────────────────────────────────
@@ -910,7 +910,7 @@
         joinBtn.textContent = 'Checking…';
         joinBtn.disabled = true;
         try {
-          const snap = await db.ref('divecalendar/rooms/' + room).once('value');
+          const snap = await db.ref('divecalendar/rooms/' + room + '/config').once('value');
           if (!snap.exists()) {
             errEl.textContent = 'Room not found. Create it first.';
             joinBtn.textContent = 'Join Room';
